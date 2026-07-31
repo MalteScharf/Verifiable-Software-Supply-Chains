@@ -1,0 +1,10 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: software-supply-chain
+nodes:
+- role: control-plane
+  extraPortMappings:     # extra Port Mapping für VCS
+      - containerPort: 30300
+        hostPort: 3000
+        protocol: TCP
+- role: worker
