@@ -1,0 +1,18 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: clone-gitea-run
+spec:
+  pipelineRef:
+    name: build
+  params:
+  - name: repo-url
+    value: http://gitea.gitea.svc.cluster.local:3000/VCSadmin/demo-app.git
+  workspaces:
+  - name: shared-data
+    volumeClaimTemplate:
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi

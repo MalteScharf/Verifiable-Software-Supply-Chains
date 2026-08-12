@@ -1,0 +1,18 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: clone-github-run
+spec:
+  pipelineRef:
+    name: build
+  params:
+  - name: repo-url
+    value: https://github.com/octocat/Hello-World.git
+  workspaces:
+  - name: shared-data
+    volumeClaimTemplate:
+      spec: 
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi

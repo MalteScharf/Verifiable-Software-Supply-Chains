@@ -1,0 +1,41 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: build
+spec:
+  description: | 
+    This pipeline clones a git repo, builds a Docker image with Kaniko 
+  params:
+  - name: repo-url
+    type: string
+  - name: image
+    type: string
+    default: demo-app:latest
+  workspaces:
+  - name: shared-data
+  tasks:
+  - name: fetch-source
+    taskRef:
+      name: git-clone
+    workspaces:
+    - name: output
+      workspace: shared-data
+    params:
+    - name: url
+      value: $(params.repo-url)
+  - name: build-origin
+    runAfter: ["fetch-source"]
+    taskRef:
+      name: kaniko
+    workspaces:
+    - name: source
+      workspace: shared-data
+    params:
+    - name: IMAGE
+      value: $(params.image)
+    - name: BUILDER_IMAGE
+      value: gcr.io/kaniko-project/executor:v1.23.2@sha256:9e69fd4330ec887829c780f5126dd80edc663df6def362cd22e79bcdf00ac53f
+    - name: EXTRA_ARGS
+      value: 
+      - --no-push
+      - --tar-path=/workspace/source/image.tar
