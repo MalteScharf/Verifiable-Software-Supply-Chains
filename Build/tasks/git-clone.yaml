@@ -1,3 +1,6 @@
+# Unveränderter Task "git-clone" (v0.9) aus dem Tekton-Catalog:
+# https://github.com/tektoncd/catalog/tree/main/task/git-clone/0.9
+# Liefert als Result den Commit-Hash der übernommenen Revision.
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:

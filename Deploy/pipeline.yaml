@@ -1,0 +1,19 @@
+# Deploy-Pipeline: stößt per Rollout-Restart die Übernahme des zuletzt gepushten Images an
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: deploy
+spec:
+  description: |
+    Deployed das Image aus der clusterinternen OCI-Registry als Container im Namespace "deploy"
+  params:
+  - name: image
+    type: string
+    default: registry.registry.svc.cluster.local:5000/demo-app:latest
+  tasks:
+  - name: deploy-image
+    taskRef:
+      name: kubectl-deploy
+    params:
+    - name: image
+      value: $(params.image)

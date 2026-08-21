@@ -1,3 +1,5 @@
+# Konfiguration des VCS
+# Erstellt die Gitea-Instanz im Cluster, die als VCS für die Demo-App dient.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -35,14 +37,14 @@ spec:
         image: gitea/gitea:1.27.1
         ports:
         - containerPort: 3000
-        env:
+        env:                               # spezielle Gitea-Konfiguration, siehe https://docs.gitea.com/administration/config-cheat-sheet/
         - name: GITEA__database__DB_TYPE
           value: sqlite3
-        - name: GITEA__server__HTTP_PORT
+        - name: GITEA__server__HTTP_PORT # Port, auf dem Gitea im Container lauscht
           value: "3000"
-        - name: GITEA__server__ROOT_URL
+        - name: GITEA__server__ROOT_URL # URL, unter der Gitea erreichbar ist (für die Demo-App: localhost:3000)
           value: http://localhost:3000/
-        - name: GITEA__security__INSTALL_LOCK
+        - name: GITEA__security__INSTALL_LOCK # verhindert, dass Gitea beim Starten die Installation erneut ausführt
           value: "true"
         volumeMounts:
         - name: gitea-data
@@ -62,7 +64,7 @@ spec:
   selector:
     app: gitea
   ports:
-    - port: 3000
-      targetPort: 3000
-      nodePort: 30300
+    - port: 3000 # Port, auf dem der Service lauscht
+      targetPort: 3000 # Port, auf den der Service weiterleitet (Container-Port)
+      nodePort: 30300 # Port, unter dem der Service von außen erreichbar ist 
 

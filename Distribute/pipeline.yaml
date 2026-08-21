@@ -1,19 +1,19 @@
-# Build-Pipeline (Baseline):
-# Clont die Demo-App aus dem clusterinternen Gitea und baut das Image mit Kaniko.
-# Kein Publish: Das Image wird nur als tar im Workspace abgelegt (--no-push).
+# Distribute-Pipeline (Baseline):
+# Clont die Demo-App aus Gitea, baut das Image mit Kaniko und pusht es
+# unter dem mutablen Tag "latest" in die clusterinterne OCI-Registry.
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  name: build
+  name: distribute
 spec:
-  description: | 
-    Clont die Demo-App und baut das Image. 
+  description: |
+    Clont die Demo-App, baut das Image und pusht es in die clusterinterne OCI-Registry.
   params:
   - name: repo-url
     type: string
   - name: image
     type: string
-    default: demo-app:latest
+    default: registry.registry.svc.cluster.local:5000/demo-app:latest
   workspaces:
   - name: shared-data
   tasks:
@@ -26,7 +26,7 @@ spec:
     params:
     - name: url
       value: $(params.repo-url)
-  - name: build-origin
+  - name: build-and-push
     runAfter: ["fetch-source"]
     taskRef:
       name: kaniko
@@ -38,7 +38,6 @@ spec:
       value: $(params.image)
     - name: BUILDER_IMAGE # Kaniko-Executor per Digest gepinnt, damit der Build-Werkzeug-Stand reproduzierbar ist
       value: gcr.io/kaniko-project/executor:v1.23.2@sha256:9e69fd4330ec887829c780f5126dd80edc663df6def362cd22e79bcdf00ac53f
-    - name: EXTRA_ARGS # zusätzliche Argumente für Kaniko,
-      value: 
-      - --no-push # Build-Phase endet vor dem Publish
-      - --tar-path=/workspace/source/image.tar # Image wird nur lokal als tar abgelegt
+    - name: EXTRA_ARGS
+      value:
+      - --insecure # Push ohne TLS, da die Registry unverschlüsselt betrieben wird (bewusste Baseline-Schwäche)

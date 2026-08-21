@@ -1,0 +1,56 @@
+# Deploy-Phase: Namespace, RBAC für den Rollout-Restart und das Deployment der Demo-App
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: deploy
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deployer
+  namespace: deploy
+rules:
+- apiGroups: ["apps"] # Gruppen von Ressourcen, auf die die Rolle Zugriff hat (hier: "apps" für Deployments)
+  resources: ["deployments"] # Ressourcen, auf die die Rolle Zugriff hat
+  verbs: ["get", "patch"] # Aktionen, die die Rolle ausführen darf 
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: deployer-binding
+  namespace: deploy
+subjects:
+- kind: ServiceAccount # Service-Account, unter dem die Tekton-PipelineRuns laufen
+  name: default
+  namespace: default
+roleRef:
+  kind: Role
+  name: deployer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app
+  namespace: deploy
+  labels:
+    app: demo-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-app
+  template:
+    metadata:
+      labels:
+        app: demo-app
+    spec:
+      containers:
+      - name: demo-app
+        # localhost:30500: Die Container-Runtime des Knotens nimmt nicht an der
+        # Cluster-DNS-Auflösung teil und erreicht die Registry nur über den NodePort.
+        # Mutabler Tag "latest" => imagePullPolicy "Always": jeder Pod-Start zieht das
+        # aktuell veröffentlichte Image ohne Verifikation (bewusste Baseline-Schwäche).
+        image: localhost:30500/demo-app:latest
+        ports:
+        - containerPort: 3000

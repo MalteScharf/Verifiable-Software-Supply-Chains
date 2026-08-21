@@ -1,11 +1,11 @@
-# Tekton PipelineRun für den Build der Demo-App aus dem Gitea-Repository
+# Startet die Distribute-Pipeline für die Demo-App aus Gitea (wird von "make build" genutzt)
 apiVersion: tekton.dev/v1beta1
 kind: PipelineRun
 metadata:
-  name: clone-gitea-run
+  generateName: distribute-run-
 spec:
   pipelineRef:
-    name: build
+    name: distribute
   params:
   - name: repo-url
     value: http://gitea.gitea.svc.cluster.local:3000/VCSadmin/demo-app.git

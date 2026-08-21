@@ -1,3 +1,9 @@
+
+# Unveränderter Task "kaniko" (v0.6) aus dem Tekton-Catalog:
+# https://github.com/tektoncd/catalog/tree/main/task/kaniko/0.6
+# Baut das Container-Image aus Dockerfile und Build-Kontext im Workspace und
+# liefert als Results den Digest (IMAGE_DIGEST) und die Referenz (IMAGE_URL)
+# des erzeugten Images. 
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:

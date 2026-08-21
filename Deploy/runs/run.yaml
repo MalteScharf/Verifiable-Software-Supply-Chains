@@ -1,0 +1,8 @@
+# Startet die Deploy-Pipeline (Rollout-Restart der Demo-App)
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: deploy-run-
+spec:
+  pipelineRef:
+    name: deploy

@@ -1,0 +1,20 @@
+# Tekton Task für den Deployment-Schritt der Demo-App:
+# Der Rollout-Restart ersetzt den laufenden Pod; wegen imagePullPolicy "Always"
+# zieht die neue Instanz das zuletzt gepushte Image aus der Registry.
+apiVersion: tekton.dev/v1beta1
+kind: Task 
+metadata:
+  name: kubectl-deploy
+spec:
+  description: |
+    Neustart des Pods im Namespace "deploy"
+  params:
+  - name: image
+    type: string
+  steps:
+  - name: restart
+    image: bitnamilegacy/kubectl # kubectl-Image, siehe https://hub.docker.com/r/bitnamilegacy/kubectl
+    script: |
+      #!/bin/sh
+      set -eu
+      kubectl rollout restart deployment/demo-app -n deploy
