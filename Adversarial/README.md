@@ -12,9 +12,9 @@ gehärtet (später) `blocked`.
 
 ## Ausführen
 
-Voraussetzung: laufendes Baseline-Setup gemäß der Repo-`readme.md` (kind-Cluster,
+Voraussetzung: laufendes Baseline-Setup gemäß `Conventional/readme.md` (kind-Cluster,
 Tekton, Gitea + Registry deployt, Demo-App in Gitea gepusht, Pipelines/Tasks und
-`Deploy/deploy.yaml` appliziert). Werkzeuge: `python3`, `git`, `kubectl`, `tkn`.
+`Conventional/Deploy/deploy.yaml` appliziert). Werkzeuge: `python3`, `git`, `kubectl`, `tkn`.
 
 ```sh
 python3 Adversarial/runner.py                    # alle Tests, beide Varianten

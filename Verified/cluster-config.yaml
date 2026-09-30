@@ -1,0 +1,13 @@
+# kind-Cluster der verifizierbaren Lieferkette.
+# Aufbau wie der Cluster der konventionellen Lieferkette (../Conventional/cluster-config.yaml),
+# damit sich beide Ketten nur durch die Erweiterungen unterscheiden.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: software-supply-chain-verified # eigener Name, damit beide Cluster parallel existieren können
+nodes:
+- role: control-plane
+  extraPortMappings:     # extra Port Mapping für VCS
+      - containerPort: 30300
+        hostPort: 3001   # 3000 ist bereits vom Cluster der konventionellen Lieferkette belegt
+        protocol: TCP
+- role: worker

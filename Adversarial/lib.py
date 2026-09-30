@@ -59,8 +59,8 @@ VARIANTS = {
         "deployment": "demo-app",
         "container_port": 3000,
         "probe_port": 18080,
-        "distribute_run": "Distribute/runs/run-gitea.yaml",
-        "deploy_run": "Deploy/runs/run.yaml",
+        "distribute_run": "Conventional/Distribute/runs/run-gitea.yaml",
+        "deploy_run": "Conventional/Deploy/runs/run.yaml",
     },
     "hardened": {
         # Platzhalter: die gehärtete Kette (Signaturzwang, Verify-Gate,

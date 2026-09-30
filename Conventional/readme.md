@@ -1,0 +1,70 @@
+# Konventionelle Lieferkette
+
+Ungehärtete Baseline des Prototyps. Eine Demo-Anwendung wird aus einem clusterinternen Git-Server (Gitea) gebaut, in eine clusterinterne Registry gepusht und im Cluster deployt. Alles läuft lokal in einem kind-Kubernetes-Cluster.
+
+## Voraussetzungen
+
+Folgende Tools müssen installiert sein:
+
+- **Docker** (läuft im Hintergrund, wird von kind benötigt)
+- **kind** – lokales Kubernetes in Docker
+- **kubectl** – Kommandozeilenwerkzeug für Kubernetes
+- **tkn** – Tekton CLI (für Pipeline-Logs, wird vom Makefile genutzt)
+- **git** – um die Demo-App in Gitea zu pushen
+
+Installation unter macOS:
+
+```sh
+brew install kind kubectl tektoncd-cli git
+```
+
+## Einmalige Einrichtung
+
+Alle Befehle werden im Hauptordner des Repos ausgeführt.
+
+1. **Cluster erstellen**
+
+   ```sh
+   kind create cluster --config Conventional/cluster-config.yaml
+   ```
+
+2. **Tekton Pipelines installieren**
+
+   ```sh
+   kubectl apply -f https://storage.googleapis.com/tekton-releases/pipeline/latest/release.yaml
+   ```
+
+3. **Gitea (VCS) und Registry deployen**
+
+   ```sh
+   kubectl apply -f Conventional/Build/VCS/vcs.yaml
+   kubectl apply -f Conventional/Distribute/registry.yaml
+   ```
+
+4. **Demo-App nach Gitea pushen**
+
+   Gitea ist unter <http://localhost:3000> erreichbar (Zugangsdaten: siehe `Conventional/Build/VCS/readme.md`). Dort ein Repo `demo-app` anlegen und den Inhalt von `Conventional/Produce/demo-app/` dorthin pushen.
+
+5. **Pipelines und Tasks anlegen**
+
+   ```sh
+   kubectl apply -f Conventional/Build/tasks/ -f Conventional/Build/pipeline.yaml
+   kubectl apply -f Conventional/Distribute/pipeline.yaml
+   kubectl apply -f Conventional/Deploy/tasks/ -f Conventional/Deploy/pipeline.yaml -f Conventional/Deploy/deploy.yaml
+   ```
+
+## Benutzung
+
+Build starten (Clone → Build → Push in die Registry):
+
+```sh
+make build
+```
+
+## Struktur
+
+- `Produce/` – Quellcode der Demo-Anwendung
+- `Build/` – Build-Pipeline (git-clone + Kaniko) und Gitea
+- `Distribute/` – clusterinterne OCI-Registry und Distribute-Pipeline
+- `Deploy/` – Deployment der Demo-App und Deploy-Pipeline
+- `cluster-config.yaml` – kind-Cluster-Konfiguration

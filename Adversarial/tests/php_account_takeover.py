@@ -92,7 +92,7 @@ class PhpAccountTakeover(lib.AttackTest):
         if "user-agentt" not in self.read("server.js"):
             return  # nichts zurückzunehmen
         # Sauberen Stand aus der Entwickler-Arbeitskopie wiederherstellen.
-        pristine = (self.repo_root / "Produce" / "demo-app" / "server.js").read_text()
+        pristine = (self.repo_root / "Conventional" / "Produce" / "demo-app" / "server.js").read_text()
         self.write("server.js", pristine)
         self.commit("Revert: remove backdoor", author=FORGE)
         self.push()
