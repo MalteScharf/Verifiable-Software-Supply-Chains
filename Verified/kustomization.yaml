@@ -1,0 +1,30 @@
+# Verifizierbare Lieferkette: Grundlage sind die unveränderten Manifeste der
+# konventionellen Lieferkette aus ../Conventional. Alle Änderungen der
+# verifizierbaren Kette werden hier als Patches oder zusätzliche Ressourcen
+# ergänzt, sodass die Unterschiede zur Baseline an einer Stelle sichtbar sind.
+#
+# Anwenden (siehe Makefile, Target verified-base):
+#   kubectl kustomize --load-restrictor=LoadRestrictionsNone Verified \
+#     | kubectl --context kind-software-supply-chain-verified apply -f -
+# Der Load-Restrictor ist nötig, weil die Manifeste außerhalb von Verified/ liegen.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+# VCS
+- ../Conventional/Build/VCS/vcs.yaml
+# Build
+- ../Conventional/Build/tasks/git-clone.yaml
+- ../Conventional/Build/tasks/kaniko.yaml
+- ../Conventional/Build/pipeline.yaml
+# Distribute
+- ../Conventional/Distribute/registry.yaml
+- ../Conventional/Distribute/pipeline.yaml
+# Deploy
+- ../Conventional/Deploy/tasks/run-deploy.yaml
+- ../Conventional/Deploy/pipeline.yaml
+- ../Conventional/Deploy/deploy.yaml
+
+patches:
+# Gitea ist in diesem Cluster über Port 3001 erreichbar (siehe cluster-config.yaml)
+- path: VCS/root-url.yaml

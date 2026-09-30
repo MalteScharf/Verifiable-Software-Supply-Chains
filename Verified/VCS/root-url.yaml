@@ -1,0 +1,17 @@
+# Gitea leitet im Browser auf ROOT_URL weiter. Im Cluster der verifizierbaren
+# Kette ist Gitea über Port 3001 erreichbar, da Port 3000 vom Cluster der
+# konventionellen Kette belegt ist. Ohne diesen Patch würde die Weboberfläche
+# nach dem Login zum Gitea der konventionellen Kette weiterleiten.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea
+  namespace: gitea
+spec:
+  template:
+    spec:
+      containers:
+      - name: gitea
+        env:
+        - name: GITEA__server__ROOT_URL
+          value: http://localhost:3001/

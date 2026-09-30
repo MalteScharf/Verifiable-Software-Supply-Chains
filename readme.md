@@ -8,7 +8,8 @@ läuft in einem eigenen lokalen kind-Cluster.
 - `Conventional/` – konventionelle Lieferkette (Baseline): Demo-Anwendung, Gitea,
   Build-, Distribute- und Deploy-Pipeline. Einrichtung siehe `Conventional/readme.md`.
 - `Verified/` – Erweiterungen der verifizierbaren Lieferkette. Sie baut auf den
-  Dateien in `Conventional/` auf und ergänzt diese.
+  Dateien in `Conventional/` auf und ergänzt diese. Einrichtung siehe
+  `Verified/readme.md`.
 - `Adversarial/` – adversariale Tests, die dokumentierte Angriffe gegen beide
   Ausbaustufen ausführen. Siehe `Adversarial/README.md`.
 - `Makefile` – Befehle für beide Ausbaustufen.

@@ -58,7 +58,13 @@ Alle Befehle werden im Hauptordner des Repos ausgeführt.
 Build starten (Clone → Build → Push in die Registry):
 
 ```sh
-make build
+make conventional-build
+```
+
+Deployment neu starten, damit das neue Image übernommen wird:
+
+```sh
+make conventional-deploy
 ```
 
 ## Struktur
