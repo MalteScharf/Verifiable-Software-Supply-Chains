@@ -17,7 +17,7 @@ import lib
 # Gefälschte, aber legitim wirkende Autor-Identität. Entspricht dem
 # Baseline-Committer der Demo-App; die Autorschaft ist durch das kompromittierte
 # Konto gedeckt, nicht kryptographisch gebunden — genau die A1-Lücke.
-FORGE = ("Malte Scharf", "malte.scharf@hotmail.de")
+FORGE = ("Malte Scharf", "malte.scharf@studium.fernuni-hagen.de")
 COMMIT_MSG = "Fix typo in User-Agent header handling"
 
 # Als Tippfehler-Korrektur getarnte Middleware. Ohne Trigger-Header ruft sie

@@ -1,0 +1,24 @@
+# Trusted Key Store (AN1)
+# Quelle ist allowed_signers_producer. Der Schlüssel steht nur dort.
+# Kubernetes bindet eine ConfigMap nur im eigenen Namespace ein. Deshalb wird
+# dieselbe ConfigMap in jeden Namespace verteilt, in dem ein Prüfer läuft:
+#   gitea   -> Prüfung beim Push (VCS)
+#   default -> Prüfung in der Build-Pipeline (Tekton)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+configMapGenerator:
+- name: trusted-key-store
+  namespace: gitea
+  files:
+  - allowed_signers_producer
+- name: trusted-key-store
+  namespace: default
+  files:
+  - allowed_signers_producer
+
+generatorOptions:
+  # fester Name, damit Hook und Task immer auf "trusted-key-store" verweisen können
+  disableNameSuffixHash: true
+  labels:
+    trust.supply-chain/role: trusted-key-store

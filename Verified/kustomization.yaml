@@ -24,6 +24,8 @@ resources:
 - ../Conventional/Deploy/tasks/run-deploy.yaml
 - ../Conventional/Deploy/pipeline.yaml
 - ../Conventional/Deploy/deploy.yaml
+# Trusted Key Store (AN1), siehe Trust/kustomization.yaml
+- Trust
 
 patches:
 # Gitea ist in diesem Cluster über Port 3001 erreichbar (siehe cluster-config.yaml)

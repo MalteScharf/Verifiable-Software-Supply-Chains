@@ -36,6 +36,24 @@ Alle Befehle werden im Hauptordner des Repos ausgeführt. Voraussetzungen wie in
    git -C Conventional/Produce/demo-app push verified main
    ```
 
+4. **Signaturschlüssel des Producers und Trusted Key Store**
+
+   Eigenen Schlüssel nur zum Signieren erzeugen. Den öffentlichen Teil **nicht**
+   im Gitea-Konto hinterlegen.
+
+   ```sh
+   ssh-keygen -t ed25519 -f ~/.ssh/producer_signing -C "producer signing"
+   echo "malte.scharf@studium.fernuni-hagen.de namespaces=\"git\" $(cat ~/.ssh/producer_signing.pub)" >> Verified/Trust/allowed_signers_producer
+   git -C Conventional/Produce/demo-app config user.email malte.scharf@studium.fernuni-hagen.de
+   ```
+
+   Danach den Trusted Key Store in den Cluster übernehmen und prüfen:
+
+   ```sh
+   make verified-base
+   make verified-check-trust
+   ```
+
 ## Benutzung
 
 ```sh
@@ -49,3 +67,4 @@ make verified-deploy   # Deployment neu starten
 |---|---|
 | `cluster-config.yaml` | eigener Clustername, Gitea auf Host-Port 3001 |
 | `VCS/root-url.yaml` | ROOT_URL von Gitea auf Port 3001 |
+| `Trust/` | Trusted Key Store (AN1): Schlüssel in `allowed_signers_producer`, `kustomization.yaml` erzeugt daraus die ConfigMap `trusted-key-store` in den Namespaces `gitea` und `default` |

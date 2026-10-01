@@ -1,0 +1,8 @@
+# Trusted Key Store: öffentliche Signaturschlüssel der Producer (AN1).
+# Format je Zeile: <E-Mail> namespaces="git" <Schlüsseltyp> <öffentlicher Schlüssel>
+# Die E-Mail muss der Autor-E-Mail der Commits entsprechen.
+# namespaces="git" beschränkt den Schlüssel auf Git-Signaturen.
+#
+# Eintrag erzeugen (im Hauptordner des Repos ausführen):
+#   echo "malte.scharf@studium.fernuni-hagen.de namespaces=\"git\" $(cat ~/.ssh/producer_signing.pub)" >> Verified/Trust/allowed_signers_producer
+malte.scharf@studium.fernuni-hagen.de namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDbr9Tr/Hvk0xG0ABOYL+HcC0JxQi0I4I/2Ma/zlbM/e producer signing

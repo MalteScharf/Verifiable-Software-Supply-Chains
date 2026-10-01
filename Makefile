@@ -26,7 +26,7 @@ define run_pipeline
 endef
 
 .PHONY: conventional-build conventional-deploy \
-        verified-cluster verified-base verified-build verified-deploy
+        verified-cluster verified-base verified-build verified-deploy verified-check-trust
 
 # ---------------------------------------------------------------------------
 # Konventionelle Lieferkette
@@ -81,3 +81,30 @@ verified-build:       ## Distribute-Pipeline im Cluster der verifizierbaren Kett
 
 verified-deploy:      ## Deploy-Pipeline im Cluster der verifizierbaren Kette
 	$(call run_pipeline,$(VER_CTX),$(DEPLOY_RUN))
+
+# Trusted Key Store: Namespaces mit einer Kopie und deren Service-Accounts
+TRUST_NAMESPACES := gitea default
+TRUST_FILE       := Verified/Trust/allowed_signers_producer
+
+verified-check-trust: ## Prüft Inhalt (TK3) und Schreibschutz (TK2) des Trusted Key Store
+	@fail=0; \
+	want=$$(shasum -a 256 < $(TRUST_FILE) | cut -d' ' -f1); \
+	echo "Inhalt der ConfigMap trusted-key-store (Soll: $(TRUST_FILE))"; \
+	for ns in $(TRUST_NAMESPACES); do \
+		have=$$(kubectl --context $(VER_CTX) -n $$ns get configmap trusted-key-store \
+			-o jsonpath='{.data.allowed_signers_producer}' | shasum -a 256 | cut -d' ' -f1); \
+		if [ "$$have" = "$$want" ]; then echo "  $$ns: identisch"; \
+		else echo "  $$ns: ABWEICHEND"; fail=1; fi; \
+	done; \
+	echo "Schreibrechte der Service-Accounts (Soll: no)"; \
+	for sa_ns in $(TRUST_NAMESPACES); do \
+		for ns in $(TRUST_NAMESPACES); do \
+			for verb in update patch delete; do \
+				r=$$(kubectl --context $(VER_CTX) auth can-i $$verb configmap/trusted-key-store \
+					-n $$ns --as=system:serviceaccount:$$sa_ns:default 2>/dev/null); \
+				echo "  $$sa_ns:default $$verb in $$ns: $$r"; \
+				[ "$$r" = "no" ] || fail=1; \
+			done; \
+		done; \
+	done; \
+	if [ $$fail -eq 0 ]; then echo "ok"; else echo "FEHLER"; exit 1; fi
