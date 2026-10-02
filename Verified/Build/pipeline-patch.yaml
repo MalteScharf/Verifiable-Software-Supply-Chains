@@ -1,0 +1,23 @@
+# Erweitert die Distribute-Pipeline der konventionellen Lieferkette (AN1):
+# 1. git-clone holt die vollständige Historie (depth 0)
+# 2. verify-signatures läuft nach git-clone
+# 3. build-and-push startet erst nach erfolgreicher Prüfung
+- op: add
+  path: /spec/tasks/0/params/-
+  value: {name: depth, value: "0"}
+- op: test
+  path: /spec/tasks/1/name
+  value: build-and-push
+- op: add
+  path: /spec/tasks/1
+  value:
+    name: verify-signatures
+    runAfter: ["fetch-source"]
+    taskRef:
+      name: verify-signatures
+    workspaces:
+    - name: source
+      workspace: shared-data
+- op: replace
+  path: /spec/tasks/2/runAfter
+  value: ["verify-signatures"]

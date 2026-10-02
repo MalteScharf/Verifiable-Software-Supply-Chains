@@ -16,17 +16,20 @@ GITEA_REPO    := demo-app
 DISTRIBUTE_RUN := Conventional/Distribute/runs/run-gitea.yaml
 DEPLOY_RUN     := Conventional/Deploy/runs/run.yaml
 
-# Startet einen PipelineRun im angegebenen Kontext, zeigt die Logs und wartet auf Erfolg.
+# Startet einen PipelineRun im angegebenen Kontext, zeigt die Logs und meldet das Ergebnis.
 # $(1) = kubectl-Kontext, $(2) = PipelineRun-Datei
 define run_pipeline
 	@RUN=$$(kubectl --context $(1) create -f $(2) -o jsonpath='{.metadata.name}'); \
 	echo "PipelineRun $$RUN gestartet"; \
 	tkn --context $(1) pipelinerun logs -f $$RUN; \
-	kubectl --context $(1) wait --for=condition=Succeeded pipelinerun/$$RUN --timeout=10m
+	STATUS=$$(kubectl --context $(1) get pipelinerun $$RUN \
+		-o jsonpath='{.status.conditions[0].status}'); \
+	if [ "$$STATUS" = True ]; then echo "PipelineRun $$RUN erfolgreich"; \
+	else echo "PipelineRun $$RUN fehlgeschlagen"; exit 1; fi
 endef
 
 .PHONY: conventional-build conventional-deploy \
-        verified-cluster verified-base verified-build verified-deploy verified-check-trust verified-hook
+        verified-cluster verified-base verified-build verified-deploy verified-check-trust verified-hook verified-hook-off
 
 # ---------------------------------------------------------------------------
 # Konventionelle Lieferkette
@@ -81,6 +84,10 @@ verified-hook:        ## Pre-receive-Hook (AN1) im Repository demo-app aktiviere
 	kubectl --context $(VER_CTX) exec -n gitea deploy/gitea -- su git -c \
 		"ln -sf /etc/vcs-hooks/verify-signatures.sh \
 		/data/git/repositories/vcsadmin/$(GITEA_REPO).git/hooks/pre-receive.d/verify-signatures"
+
+verified-hook-off:    ## Pre-receive-Hook abschalten (nur für Tests der Build-Prüfung)
+	kubectl --context $(VER_CTX) exec -n gitea deploy/gitea -- su git -c \
+		"rm -f /data/git/repositories/vcsadmin/$(GITEA_REPO).git/hooks/pre-receive.d/verify-signatures"
 
 verified-build:       ## Distribute-Pipeline im Cluster der verifizierbaren Kette
 	$(call run_pipeline,$(VER_CTX),$(DISTRIBUTE_RUN))

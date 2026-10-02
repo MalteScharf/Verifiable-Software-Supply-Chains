@@ -69,3 +69,4 @@ make verified-deploy   # Deployment neu starten
 | `VCS/root-url.yaml` | ROOT_URL von Gitea auf Port 3001 |
 | `Trust/` | Trusted Key Store (AN1): Schlüssel in `allowed_signers_producer`, daraus die ConfigMap `trusted-key-store` im Namespace `trust`. `trust.yaml` legt fest, wer lesen darf (Gitea, Tekton). |
 | `VCS/verify-signatures.sh`, `VCS/hook-mount.yaml` | Pre-receive-Hook (AN1): prüft beim Push jeden neuen Commit gegen den Trusted Key Store. Aktiviert durch `make verified-hook` (Teil von `verified-base`). |
+| `Build/tasks/verify-signatures.yaml`, `Build/pipeline-patch.yaml` | Prüfung in der Build-Plattform (AN1): neuer Task nach `git-clone`, der alle Commits gegen den Trusted Key Store prüft. Der Patch fügt ihn in die Distribute-Pipeline ein. |

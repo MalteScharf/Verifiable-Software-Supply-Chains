@@ -26,12 +26,19 @@ resources:
 - ../Conventional/Deploy/deploy.yaml
 # Trusted Key Store (AN1), siehe Trust/kustomization.yaml
 - Trust
+# Prüfung der Signaturen in der Build-Plattform (AN1)
+- Build/tasks/verify-signatures.yaml
 
 patches:
 # Gitea ist in diesem Cluster über Port 3001 erreichbar (siehe cluster-config.yaml)
 - path: VCS/root-url.yaml
 # Pre-receive-Hook (AN1) in den Gitea-Pod einbinden
 - path: VCS/hook-mount.yaml
+# Prüfung der Signaturen in die Distribute-Pipeline einfügen
+- path: Build/pipeline-patch.yaml
+  target:
+    kind: Pipeline
+    name: distribute
 
 # Pre-receive-Hook als ConfigMap im Namespace gitea
 configMapGenerator:

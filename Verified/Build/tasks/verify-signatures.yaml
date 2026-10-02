@@ -1,0 +1,41 @@
+# Prüfung der Commit-Signaturen in der Build-Plattform (AN1).
+# Läuft nach git-clone und vor dem Build. Schlägt die Prüfung fehl, bricht die
+# Pipeline ab und es wird kein Image gebaut.
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: verify-signatures
+spec:
+  workspaces:
+  - name: source
+  volumes:
+  - name: tks
+    emptyDir: {}
+  steps:
+  # Trusted Key Store über die Kubernetes-API lesen (Leserecht: trust-reader)
+  - name: read-trusted-key-store
+    image: bitnamilegacy/kubectl
+    volumeMounts:
+    - name: tks
+      mountPath: /tks
+    script: |
+      #!/bin/sh
+      set -eu
+      kubectl get configmap trusted-key-store -n trust \
+        -o jsonpath='{.data.allowed_signers_producer}' > /tks/allowed_signers
+      [ -s /tks/allowed_signers ]
+  # Alle Commits der Historie prüfen: gültige Signatur (G) und Signierender = Autor
+  - name: verify
+    image: alpine/git
+    workingDir: $(workspaces.source.path)
+    volumeMounts:
+    - name: tks
+      mountPath: /tks
+    script: |
+      #!/bin/sh
+      git config --global --add safe.directory '*'
+      for c in $(git rev-list HEAD); do
+        set -- $(git -c gpg.ssh.allowedSignersFile=/tks/allowed_signers log -1 --format='%G? %GS %ae' $c)
+        [ "$1" = G ] && [ "$2" = "$3" ] || { echo "Abgelehnt: Commit $c nicht gültig signiert"; exit 1; }
+      done
+      echo "Alle Commits gültig signiert"
