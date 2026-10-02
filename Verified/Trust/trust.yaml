@@ -1,0 +1,35 @@
+# Namespace und Leserechte des Trusted Key Store.
+# Schreiben darf nur der Administrator des Clusters (TK2).
+# Lesen dürfen nur die hier aufgeführten Prüfer (TK3).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: trust
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: trust-reader
+  namespace: trust
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  resourceNames: ["trusted-key-store"]
+  verbs: ["get"]          # nur lesen
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: trust-reader-binding
+  namespace: trust
+subjects:
+- kind: ServiceAccount    # Gitea (Prüfung beim Push)
+  name: default
+  namespace: gitea
+- kind: ServiceAccount    # Tekton-Pipelines (Prüfung im Build)
+  name: default
+  namespace: default
+roleRef:
+  kind: Role
+  name: trust-reader
+  apiGroup: rbac.authorization.k8s.io

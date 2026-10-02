@@ -67,4 +67,4 @@ make verified-deploy   # Deployment neu starten
 |---|---|
 | `cluster-config.yaml` | eigener Clustername, Gitea auf Host-Port 3001 |
 | `VCS/root-url.yaml` | ROOT_URL von Gitea auf Port 3001 |
-| `Trust/` | Trusted Key Store (AN1): Schlüssel in `allowed_signers_producer`, `kustomization.yaml` erzeugt daraus die ConfigMap `trusted-key-store` in den Namespaces `gitea` und `default` |
+| `Trust/` | Trusted Key Store (AN1): Schlüssel in `allowed_signers_producer`, daraus die ConfigMap `trusted-key-store` im Namespace `trust`. `trust.yaml` legt fest, wer lesen darf (Gitea, Tekton). |
