@@ -68,3 +68,4 @@ make verified-deploy   # Deployment neu starten
 | `cluster-config.yaml` | eigener Clustername, Gitea auf Host-Port 3001 |
 | `VCS/root-url.yaml` | ROOT_URL von Gitea auf Port 3001 |
 | `Trust/` | Trusted Key Store (AN1): Schlüssel in `allowed_signers_producer`, daraus die ConfigMap `trusted-key-store` im Namespace `trust`. `trust.yaml` legt fest, wer lesen darf (Gitea, Tekton). |
+| `VCS/verify-signatures.sh`, `VCS/hook-mount.yaml` | Pre-receive-Hook (AN1): prüft beim Push jeden neuen Commit gegen den Trusted Key Store. Aktiviert durch `make verified-hook` (Teil von `verified-base`). |

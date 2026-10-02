@@ -30,3 +30,14 @@ resources:
 patches:
 # Gitea ist in diesem Cluster über Port 3001 erreichbar (siehe cluster-config.yaml)
 - path: VCS/root-url.yaml
+# Pre-receive-Hook (AN1) in den Gitea-Pod einbinden
+- path: VCS/hook-mount.yaml
+
+# Pre-receive-Hook als ConfigMap im Namespace gitea
+configMapGenerator:
+- name: vcs-hooks
+  namespace: gitea
+  files:
+  - VCS/verify-signatures.sh
+  options:
+    disableNameSuffixHash: true

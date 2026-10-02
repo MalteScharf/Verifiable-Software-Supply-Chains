@@ -26,7 +26,7 @@ define run_pipeline
 endef
 
 .PHONY: conventional-build conventional-deploy \
-        verified-cluster verified-base verified-build verified-deploy verified-check-trust
+        verified-cluster verified-base verified-build verified-deploy verified-check-trust verified-hook
 
 # ---------------------------------------------------------------------------
 # Konventionelle Lieferkette
@@ -75,6 +75,12 @@ verified-base:        ## Tekton, Gitea, Registry, Tasks, Pipelines, Deploy sowie
 		409) echo "  bereits vorhanden";; \
 		*) echo "  Fehler: HTTP $$CODE"; exit 1;; \
 	esac
+	@$(MAKE) --no-print-directory verified-hook
+
+verified-hook:        ## Pre-receive-Hook (AN1) im Repository demo-app aktivieren
+	kubectl --context $(VER_CTX) exec -n gitea deploy/gitea -- su git -c \
+		"ln -sf /etc/vcs-hooks/verify-signatures.sh \
+		/data/git/repositories/vcsadmin/$(GITEA_REPO).git/hooks/pre-receive.d/verify-signatures"
 
 verified-build:       ## Distribute-Pipeline im Cluster der verifizierbaren Kette
 	$(call run_pipeline,$(VER_CTX),$(DISTRIBUTE_RUN))

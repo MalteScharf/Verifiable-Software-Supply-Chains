@@ -1,0 +1,21 @@
+# Bindet den Pre-receive-Hook (AN1) schreibgeschützt und ausführbar in den
+# Gitea-Pod ein. Aktiviert wird er im Repository durch make verified-hook.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea
+  namespace: gitea
+spec:
+  template:
+    spec:
+      containers:
+      - name: gitea
+        volumeMounts:
+        - name: vcs-hooks
+          mountPath: /etc/vcs-hooks
+          readOnly: true
+      volumes:
+      - name: vcs-hooks
+        configMap:
+          name: vcs-hooks
+          defaultMode: 0555
