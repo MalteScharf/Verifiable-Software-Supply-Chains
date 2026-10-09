@@ -25,6 +25,7 @@ REV ?= $(shell git -C Verified/Produce/demo-app rev-parse HEAD 2>/dev/null)
 # $(1) = kubectl-Kontext, $(2) = PipelineRun-Datei (ein Platzhalter __REVISION__ wird durch REV ersetzt)
 define run_pipeline
 	@RUN=$$(sed 's/__REVISION__/$(REV)/' $(2) | kubectl --context $(1) create -f - -o jsonpath='{.metadata.name}'); \
+	[ -n "$$RUN" ] || { echo "PipelineRun konnte nicht gestartet werden"; exit 1; }; \
 	echo "PipelineRun $$RUN gestartet"; \
 	tkn --context $(1) pipelinerun logs -f $$RUN; \
 	STATUS=$$(kubectl --context $(1) get pipelinerun $$RUN \

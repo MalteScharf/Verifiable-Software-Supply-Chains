@@ -11,7 +11,7 @@ spec:
   - name: repo-url
     value: http://gitea.gitea.svc.cluster.local:3000/VCSadmin/demo-app.git
   - name: revision
-    value: __REVISION__
+    value: "__REVISION__"
   workspaces:
   - name: shared-data
     volumeClaimTemplate:
