@@ -4,3 +4,4 @@
 #
 # Eintrag erzeugen (im Hauptordner des Repos ausführen):
 #   echo "authorizer@example.com namespaces=\"git\" $(cat ~/.ssh/authorizer_signing.pub)" >> Verified/Trust/allowed_signers_authorizer
+authorizer@example.com namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA5YLUDsK5OrdtEBZtbhOSFSfsUVhyc79ze05dwhg70l authorizer signing
