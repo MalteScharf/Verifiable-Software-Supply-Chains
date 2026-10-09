@@ -3,7 +3,8 @@
 # 2. git-clone holt diesen Commit mit vollständiger Historie (depth 0)
 # 3. verify-revision prüft den übernommenen Stand gegen den Build-Auftrag (AN2a)
 # 4. verify-signatures prüft die Signaturen aller Commits (AN1)
-# 5. build-and-push startet erst nach erfolgreichen Prüfungen
+# 5. verify-authorization prüft die Freigabe durch einen Authorizer (AN2b)
+# 6. build-and-push startet erst nach erfolgreichen Prüfungen
 - op: add
   path: /spec/params/-
   value: {name: revision, type: string}
@@ -39,6 +40,19 @@
     workspaces:
     - name: source
       workspace: shared-data
+- op: add
+  path: /spec/tasks/3
+  value:
+    name: verify-authorization
+    runAfter: ["verify-signatures"]
+    taskRef:
+      name: verify-authorization
+    params:
+    - name: revision
+      value: $(params.revision)
+    workspaces:
+    - name: source
+      workspace: shared-data
 - op: replace
-  path: /spec/tasks/3/runAfter
-  value: ["verify-signatures"]
+  path: /spec/tasks/4/runAfter
+  value: ["verify-authorization"]

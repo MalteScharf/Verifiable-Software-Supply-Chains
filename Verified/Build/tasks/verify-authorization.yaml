@@ -1,0 +1,40 @@
+# Prüfung der Autorisierung in der Build-Plattform (AN2b).
+# Für den Commit aus dem Build-Auftrag muss ein Tag existieren, den ein
+# Authorizer aus dem Trusted Key Store signiert hat. Sonst bricht die Pipeline ab.
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: verify-authorization
+spec:
+  params:
+  - name: revision
+  workspaces:
+  - name: source
+  volumes:
+  - name: tks
+    emptyDir: {}
+  steps:
+  - name: read-trusted-key-store
+    image: bitnamilegacy/kubectl
+    volumeMounts: [{name: tks, mountPath: /tks}]
+    script: |
+      #!/bin/sh
+      set -eu
+      kubectl get configmap trusted-key-store -n trust \
+        -o jsonpath='{.data.allowed_signers_authorizer}' > /tks/allowed_signers
+      [ -s /tks/allowed_signers ]
+  - name: verify
+    image: alpine/git
+    workingDir: $(workspaces.source.path)
+    volumeMounts: [{name: tks, mountPath: /tks}]
+    env:
+    - {name: REV, value: $(params.revision)}
+    script: |
+      #!/bin/sh
+      git config --global --add safe.directory '*'
+      git fetch -q origin 'refs/tags/*:refs/tags/*'
+      for t in $(git tag --points-at "$REV"); do
+        git -c gpg.ssh.allowedSignersFile=/tks/allowed_signers verify-tag "$t" \
+          && { echo "Freigegeben durch Tag $t"; exit 0; }
+      done
+      echo "Abgelehnt: keine gültige Freigabe für $REV"; exit 1

@@ -54,9 +54,22 @@ Alle Befehle werden im Hauptordner des Repos ausgeführt. Voraussetzungen wie in
    make verified-check-trust
    ```
 
+5. **Signaturschlüssel des Authorizers (AN2b)**
+
+   Zweiter Schlüssel, nur für Freigaben. Er steht in einer eigenen Datei des
+   Trusted Key Store, getrennt von den Producer-Schlüsseln.
+
+   ```sh
+   ssh-keygen -t ed25519 -f ~/.ssh/authorizer_signing -C "authorizer signing"
+   echo "authorizer@example.com namespaces=\"git\" $(cat ~/.ssh/authorizer_signing.pub)" >> Verified/Trust/allowed_signers_authorizer
+   make verified-base
+   make verified-check-trust
+   ```
+
 ## Benutzung
 
 ```sh
+make verified-approve  # Freigabe: signierter Tag des Authorizers auf den aktuellen Commit
 make verified-build    # Clone, Build, Push in die Registry
 make verified-deploy   # Deployment neu starten
 ```
@@ -65,8 +78,11 @@ make verified-deploy   # Deployment neu starten
 (`Verified/Produce/demo-app`). Einen anderen Stand nennt man über seinen Commit-Hash:
 
 ```sh
+make verified-approve REV=<commit-hash>
 make verified-build REV=<commit-hash>
 ```
+
+Gebaut wird nur ein Stand, für den ein vom Authorizer signierter Tag existiert.
 
 ## Unterschiede zur konventionellen Kette
 
@@ -74,7 +90,8 @@ make verified-build REV=<commit-hash>
 |---|---|
 | `cluster-config.yaml` | eigener Clustername, Gitea auf Host-Port 3001 |
 | `VCS/root-url.yaml` | ROOT_URL von Gitea auf Port 3001 |
-| `Trust/` | Trusted Key Store (AN1): Schlüssel in `allowed_signers_producer`, daraus die ConfigMap `trusted-key-store` im Namespace `trust`. `trust.yaml` legt fest, wer lesen darf (Gitea, Tekton). |
+| `Trust/` | Trusted Key Store (AN1, AN2b): Schlüssel in `allowed_signers_producer` und `allowed_signers_authorizer`, daraus die ConfigMap `trusted-key-store` im Namespace `trust`. `trust.yaml` legt fest, wer lesen darf (Gitea, Tekton). |
 | `VCS/verify-signatures.sh`, `VCS/hook-mount.yaml` | Pre-receive-Hook (AN1): prüft beim Push jeden neuen Commit gegen den Trusted Key Store. Aktiviert durch `make verified-hook` (Teil von `verified-base`). |
 | `Build/tasks/verify-signatures.yaml`, `Build/pipeline-patch.yaml` | Prüfung in der Build-Plattform (AN1): neuer Task nach `git-clone`, der alle Commits gegen den Trusted Key Store prüft. Der Patch fügt ihn in die Distribute-Pipeline ein. |
 | `Build/tasks/verify-revision.yaml`, `Distribute/runs/run-gitea.yaml` | Quellreferenz (AN2a): Der Build-Auftrag nennt den Commit-Hash (Parameter `revision`). `git-clone` holt genau diesen Commit, `verify-revision` prüft ihn vor der Signaturprüfung. |
+| `Build/tasks/verify-authorization.yaml` | Autorisierung (AN2b): prüft, ob ein Tag auf den Commit zeigt, den ein Authorizer aus dem Trusted Key Store signiert hat. Freigabe mit `make verified-approve`. |

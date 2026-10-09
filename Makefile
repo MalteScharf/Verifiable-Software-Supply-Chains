@@ -19,7 +19,12 @@ DEPLOY_RUN     := Conventional/Deploy/runs/run.yaml
 # Build-Auftrag der verifizierbaren Kette (AN2a). REV ist der zu bauende Commit-Hash.
 # Standard: aktueller Commit der lokalen Demo-App, überschreibbar mit make verified-build REV=<hash>
 VER_DISTRIBUTE_RUN := Verified/Distribute/runs/run-gitea.yaml
-REV ?= $(shell git -C Verified/Produce/demo-app rev-parse HEAD 2>/dev/null)
+DEMO_DIR := Verified/Produce/demo-app
+REV ?= $(shell git -C $(DEMO_DIR) rev-parse HEAD 2>/dev/null)
+
+# Authorizer (AN2b): eigene Identität und eigener Signaturschlüssel
+AUTHORIZER_EMAIL := authorizer@example.com
+AUTHORIZER_KEY   := $(HOME)/.ssh/authorizer_signing.pub
 
 # Startet einen PipelineRun im angegebenen Kontext, zeigt die Logs und meldet das Ergebnis.
 # $(1) = kubectl-Kontext, $(2) = PipelineRun-Datei (ein Platzhalter __REVISION__ wird durch REV ersetzt)
@@ -35,7 +40,7 @@ define run_pipeline
 endef
 
 .PHONY: conventional-build conventional-deploy \
-        verified-cluster verified-base verified-build verified-deploy verified-check-trust verified-hook verified-hook-off
+        verified-cluster verified-base verified-build verified-deploy verified-check-trust verified-hook verified-hook-off verified-approve
 
 # ---------------------------------------------------------------------------
 # Konventionelle Lieferkette
@@ -86,6 +91,12 @@ verified-base:        ## Tekton, Gitea, Registry, Tasks, Pipelines, Deploy sowie
 	esac
 	@$(MAKE) --no-print-directory verified-hook
 
+verified-approve:     ## Freigabe (AN2b): Authorizer signiert einen Tag auf REV und pusht ihn
+	git -C $(DEMO_DIR) -c user.name=Authorizer -c user.email=$(AUTHORIZER_EMAIL) \
+		-c gpg.format=ssh -c user.signingkey=$(AUTHORIZER_KEY) \
+		tag -s -m "Freigabe für Build" approved-$(REV) $(REV)
+	git -C $(DEMO_DIR) push origin approved-$(REV)
+
 verified-hook:        ## Pre-receive-Hook (AN1) im Repository demo-app aktivieren
 	kubectl --context $(VER_CTX) exec -n gitea deploy/gitea -- su git -c \
 		"ln -sf /etc/vcs-hooks/verify-signatures.sh \
@@ -102,16 +113,18 @@ verified-deploy:      ## Deploy-Pipeline im Cluster der verifizierbaren Kette
 	$(call run_pipeline,$(VER_CTX),$(DEPLOY_RUN))
 
 # Trusted Key Store: eine ConfigMap im Namespace trust, gelesen von diesen Prüfern
-TRUST_FILE    := Verified/Trust/allowed_signers_producer
+TRUST_FILES   := allowed_signers_producer allowed_signers_authorizer
 TRUST_READERS := system:serviceaccount:gitea:default system:serviceaccount:default:default
 
 verified-check-trust: ## Prüft Inhalt, Lese- (TK3) und Schreibrechte (TK2) des Trusted Key Store
 	@fail=0; \
-	want=$$(shasum -a 256 < $(TRUST_FILE) | cut -d' ' -f1); \
-	have=$$(kubectl --context $(VER_CTX) -n trust get configmap trusted-key-store \
-		-o jsonpath='{.data.allowed_signers_producer}' | shasum -a 256 | cut -d' ' -f1); \
-	if [ "$$have" = "$$want" ]; then echo "Inhalt: identisch mit $(TRUST_FILE)"; \
-	else echo "Inhalt: ABWEICHEND"; fail=1; fi; \
+	for f in $(TRUST_FILES); do \
+		want=$$(shasum -a 256 < Verified/Trust/$$f | cut -d' ' -f1); \
+		have=$$(kubectl --context $(VER_CTX) -n trust get configmap trusted-key-store \
+			-o jsonpath="{.data.$$f}" | shasum -a 256 | cut -d' ' -f1); \
+		if [ "$$have" = "$$want" ]; then echo "Inhalt $$f: identisch"; \
+		else echo "Inhalt $$f: ABWEICHEND"; fail=1; fi; \
+	done; \
 	for sa in $(TRUST_READERS); do \
 		echo "$$sa"; \
 		for verb in get update patch delete; do \
