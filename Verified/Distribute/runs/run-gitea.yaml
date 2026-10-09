@@ -1,0 +1,22 @@
+# Build-Auftrag der verifizierbaren Kette (AN2a): nennt den Stand über den Commit-Hash.
+# Der Platzhalter __REVISION__ wird beim Start ersetzt (make verified-build bzw. Angriffs-Runner).
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: distribute-run-
+spec:
+  pipelineRef:
+    name: distribute
+  params:
+  - name: repo-url
+    value: http://gitea.gitea.svc.cluster.local:3000/VCSadmin/demo-app.git
+  - name: revision
+    value: __REVISION__
+  workspaces:
+  - name: shared-data
+    volumeClaimTemplate:
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi

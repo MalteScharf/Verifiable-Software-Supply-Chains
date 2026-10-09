@@ -16,10 +16,15 @@ GITEA_REPO    := demo-app
 DISTRIBUTE_RUN := Conventional/Distribute/runs/run-gitea.yaml
 DEPLOY_RUN     := Conventional/Deploy/runs/run.yaml
 
+# Build-Auftrag der verifizierbaren Kette (AN2a). REV ist der zu bauende Commit-Hash.
+# Standard: aktueller Commit der lokalen Demo-App, überschreibbar mit make verified-build REV=<hash>
+VER_DISTRIBUTE_RUN := Verified/Distribute/runs/run-gitea.yaml
+REV ?= $(shell git -C Verified/Produce/demo-app rev-parse HEAD 2>/dev/null)
+
 # Startet einen PipelineRun im angegebenen Kontext, zeigt die Logs und meldet das Ergebnis.
-# $(1) = kubectl-Kontext, $(2) = PipelineRun-Datei
+# $(1) = kubectl-Kontext, $(2) = PipelineRun-Datei (ein Platzhalter __REVISION__ wird durch REV ersetzt)
 define run_pipeline
-	@RUN=$$(kubectl --context $(1) create -f $(2) -o jsonpath='{.metadata.name}'); \
+	@RUN=$$(sed 's/__REVISION__/$(REV)/' $(2) | kubectl --context $(1) create -f - -o jsonpath='{.metadata.name}'); \
 	echo "PipelineRun $$RUN gestartet"; \
 	tkn --context $(1) pipelinerun logs -f $$RUN; \
 	STATUS=$$(kubectl --context $(1) get pipelinerun $$RUN \
@@ -90,7 +95,7 @@ verified-hook-off:    ## Pre-receive-Hook abschalten (nur für Tests der Build-P
 		"rm -f /data/git/repositories/vcsadmin/$(GITEA_REPO).git/hooks/pre-receive.d/verify-signatures"
 
 verified-build:       ## Distribute-Pipeline im Cluster der verifizierbaren Kette
-	$(call run_pipeline,$(VER_CTX),$(DISTRIBUTE_RUN))
+	$(call run_pipeline,$(VER_CTX),$(VER_DISTRIBUTE_RUN))
 
 verified-deploy:      ## Deploy-Pipeline im Cluster der verifizierbaren Kette
 	$(call run_pipeline,$(VER_CTX),$(DEPLOY_RUN))

@@ -58,6 +58,7 @@ class PhpAccountTakeover(lib.AttackTest):
             self.detail = "Backdoor bereits in main — Commit übersprungen, Kette neu gebaut"
             print("    -> Backdoor bereits vorhanden, Commit übersprungen")
         else:
+            self._before_sha = self.head_sha()  # Stand vor dem Angriff, für den Cleanup
             self.write("server.js", _backdoored(self.read("server.js")))
             self.commit(COMMIT_MSG, author=FORGE)
             print(f"    -> Backdoor-Commit als '{FORGE[0]}' erstellt")
@@ -88,6 +89,17 @@ class PhpAccountTakeover(lib.AttackTest):
         return reachable
 
     def cleanup(self) -> None:
+        before = getattr(self, "_before_sha", None)
+        if before:
+            if self.remote_sha() == before:
+                return  # Angriff wurde vor dem VCS gestoppt, nichts zurückzunehmen
+            # Stand vor dem Angriff wiederherstellen. Ein Force-Push erzeugt keinen
+            # neuen Commit und funktioniert daher auch mit der Prüfung im VCS.
+            self.reset_remote(before)
+            self.rebuild()
+            print("    -> VCS auf Stand vor dem Angriff zurückgesetzt, Kette neu gebaut")
+            return
+        # Fallback: Die Backdoor war schon vor diesem Lauf in main.
         self.clone()
         if "user-agentt" not in self.read("server.js"):
             return  # nichts zurückzunehmen

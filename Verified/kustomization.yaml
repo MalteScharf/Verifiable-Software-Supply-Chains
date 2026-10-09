@@ -28,6 +28,8 @@ resources:
 - Trust
 # Prüfung der Signaturen in der Build-Plattform (AN1)
 - Build/tasks/verify-signatures.yaml
+# Prüfung der Quellreferenz in der Build-Plattform (AN2a)
+- Build/tasks/verify-revision.yaml
 
 patches:
 # Gitea ist in diesem Cluster über Port 3001 erreichbar (siehe cluster-config.yaml)

@@ -1,0 +1,23 @@
+# Prüfung der Quellreferenz in der Build-Plattform (AN2a):
+# Der übernommene Stand muss genau der Commit sein, den der Build-Auftrag nennt.
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: verify-revision
+spec:
+  params:
+  - name: revision
+  workspaces:
+  - name: source
+  steps:
+  - name: verify
+    image: alpine/git
+    workingDir: $(workspaces.source.path)
+    env:
+    - {name: REV, value: $(params.revision)}
+    script: |
+      #!/bin/sh
+      git config --global --add safe.directory '*'
+      echo "$REV" | grep -Eqx '[0-9a-f]{40}' || { echo "Abgelehnt: Build-Auftrag nennt keinen Commit-Hash"; exit 1; }
+      [ "$(git rev-parse HEAD)" = "$REV" ] || { echo "Abgelehnt: Stand weicht vom Build-Auftrag ab"; exit 1; }
+      echo "Stand entspricht dem Build-Auftrag $REV"

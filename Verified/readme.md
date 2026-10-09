@@ -61,6 +61,13 @@ make verified-build    # Clone, Build, Push in die Registry
 make verified-deploy   # Deployment neu starten
 ```
 
+`make verified-build` baut den aktuellen Commit der lokalen Demo-App
+(`Verified/Produce/demo-app`). Einen anderen Stand nennt man über seinen Commit-Hash:
+
+```sh
+make verified-build REV=<commit-hash>
+```
+
 ## Unterschiede zur konventionellen Kette
 
 | Datei | Änderung |
@@ -70,3 +77,4 @@ make verified-deploy   # Deployment neu starten
 | `Trust/` | Trusted Key Store (AN1): Schlüssel in `allowed_signers_producer`, daraus die ConfigMap `trusted-key-store` im Namespace `trust`. `trust.yaml` legt fest, wer lesen darf (Gitea, Tekton). |
 | `VCS/verify-signatures.sh`, `VCS/hook-mount.yaml` | Pre-receive-Hook (AN1): prüft beim Push jeden neuen Commit gegen den Trusted Key Store. Aktiviert durch `make verified-hook` (Teil von `verified-base`). |
 | `Build/tasks/verify-signatures.yaml`, `Build/pipeline-patch.yaml` | Prüfung in der Build-Plattform (AN1): neuer Task nach `git-clone`, der alle Commits gegen den Trusted Key Store prüft. Der Patch fügt ihn in die Distribute-Pipeline ein. |
+| `Build/tasks/verify-revision.yaml`, `Distribute/runs/run-gitea.yaml` | Quellreferenz (AN2a): Der Build-Auftrag nennt den Commit-Hash (Parameter `revision`). `git-clone` holt genau diesen Commit, `verify-revision` prüft ihn vor der Signaturprüfung. |

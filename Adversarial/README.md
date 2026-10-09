@@ -3,8 +3,9 @@
 Reproduzieren dokumentierte Lieferkettenangriffe gegen den Prototyp und
 belegen, welche Vertrauensgrenze verletzt wird. Ein schlanker Python-Runner
 findet alle Tests im Ordner `tests/` und führt sie gegen beide Ausbaustufen aus:
-die **Baseline** (konventionell, ungehärtet) und die **gehärtete** Kette (noch
-nicht implementiert → wird übersprungen).
+die **Baseline** (konventionell, ungehärtet) und die **gehärtete** Kette
+(verifizierbare Lieferkette in `Verified/`). Jede Variante läuft in einem eigenen
+kind-Cluster und wird über ihren festen kubectl-Kontext angesprochen.
 
 Es gibt bewusst **keine** Soll-/Ist-Bewertung. Der Runner führt den Angriff aus
 und berichtet, was passiert ist. Die Auswertung liest ab: Baseline `vulnerable`,
@@ -82,11 +83,19 @@ Ports, PipelineRun-Dateien) kommen aus `self.cfg`, damit derselbe Test ohne
 Änderung gegen Baseline und gehärtete Kette läuft. Temporäre Klone räumt der
 Runner auf.
 
-## Gehärtete Variante aktivieren (später)
+## Gehärtete Variante
 
-In `lib.py` unter `VARIANTS["hardened"]` die Endpunkte der gehärteten Kette
-eintragen und `status` von `pending` auf `active` setzen. Danach läuft dieselbe
-Testmenge automatisch auch dagegen; erwartet wird dort `blocked`.
+Konfiguriert in `lib.py` unter `VARIANTS["hardened"]` (Gitea auf Port 3001,
+Kontext `kind-software-supply-chain-verified`). Erwartet wird `blocked`.
+
+Um zu zeigen, dass die Build-Plattform einen Angriff auch ohne die Prüfung im VCS
+stoppt, den Pre-receive-Hook vorübergehend abschalten:
+
+```sh
+make verified-hook-off
+python3 Adversarial/runner.py --variant hardened
+make verified-hook
+```
 
 ## Tests
 

@@ -1,7 +1,15 @@
-# Erweitert die Distribute-Pipeline der konventionellen Lieferkette (AN1):
-# 1. git-clone holt die vollständige Historie (depth 0)
-# 2. verify-signatures läuft nach git-clone
-# 3. build-and-push startet erst nach erfolgreicher Prüfung
+# Erweitert die Distribute-Pipeline der konventionellen Lieferkette:
+# 1. Parameter revision: der Build-Auftrag nennt den Commit-Hash (AN2a)
+# 2. git-clone holt diesen Commit mit vollständiger Historie (depth 0)
+# 3. verify-revision prüft den übernommenen Stand gegen den Build-Auftrag (AN2a)
+# 4. verify-signatures prüft die Signaturen aller Commits (AN1)
+# 5. build-and-push startet erst nach erfolgreichen Prüfungen
+- op: add
+  path: /spec/params/-
+  value: {name: revision, type: string}
+- op: add
+  path: /spec/tasks/0/params/-
+  value: {name: revision, value: $(params.revision)}
 - op: add
   path: /spec/tasks/0/params/-
   value: {name: depth, value: "0"}
@@ -11,13 +19,26 @@
 - op: add
   path: /spec/tasks/1
   value:
-    name: verify-signatures
+    name: verify-revision
     runAfter: ["fetch-source"]
+    taskRef:
+      name: verify-revision
+    params:
+    - name: revision
+      value: $(params.revision)
+    workspaces:
+    - name: source
+      workspace: shared-data
+- op: add
+  path: /spec/tasks/2
+  value:
+    name: verify-signatures
+    runAfter: ["verify-revision"]
     taskRef:
       name: verify-signatures
     workspaces:
     - name: source
       workspace: shared-data
 - op: replace
-  path: /spec/tasks/2/runAfter
+  path: /spec/tasks/3/runAfter
   value: ["verify-signatures"]

@@ -46,10 +46,12 @@ class AttackBlocked(Exception):
 
 
 # Varianten. Der Runner provisioniert nichts, er zielt auf die jeweils bereits
-# deployte Kette. "hardened" ist noch nicht implementiert und wird übersprungen.
+# deployte Kette. Jede Variante läuft in einem eigenen kind-Cluster und wird
+# immer über ihren festen kubectl-Kontext angesprochen.
 VARIANTS = {
     "baseline": {
         "status": "active",
+        "kube_context": "kind-software-supply-chain",
         "gitea_host": "localhost:3000",
         "gitea_user": "VCSadmin",
         "gitea_password": "VCSadmin",
@@ -63,19 +65,35 @@ VARIANTS = {
         "deploy_run": "Conventional/Deploy/runs/run.yaml",
     },
     "hardened": {
-        # Platzhalter: die gehärtete Kette (Signaturzwang, Verify-Gate,
-        # Admission-Policy) ist noch nicht gebaut. Endpunkte später ergänzen und
-        # status auf "active" setzen.
-        "status": "pending",
+        # Verifizierbare Lieferkette (Verified/). Gleiche Manifeste wie die
+        # Baseline, ergänzt um die Prüfungen der verifizierbaren Kette.
+        "status": "active",
+        "kube_context": "kind-software-supply-chain-verified",
+        "gitea_host": "localhost:3001",
+        "gitea_user": "VCSadmin",
+        "gitea_password": "VCSadmin",
+        "repo_path": "VCSadmin/demo-app.git",
+        "branch": "main",
+        "deploy_ns": "deploy",
+        "deployment": "demo-app",
+        "container_port": 3000,
+        "probe_port": 18081,
+        "distribute_run": "Verified/Distribute/runs/run-gitea.yaml",
+        "deploy_run": "Conventional/Deploy/runs/run.yaml",
     },
 }
+
+
+def kubectl(cfg: dict, *args: str) -> list[str]:
+    """kubectl-Aufruf mit dem festen Kontext der Variante."""
+    return ["kubectl", "--context", cfg["kube_context"], *args]
 
 
 # --------------------------------------------------------------------------- #
 # Helfer
 # --------------------------------------------------------------------------- #
-def run(cmd: list[str], *, cwd=None, check: bool = True, timeout=None, env=None
-        ) -> subprocess.CompletedProcess:
+def run(cmd: list[str], *, cwd=None, check: bool = True, timeout=None, env=None,
+        input: str | None = None) -> subprocess.CompletedProcess:
     """Führt ein Kommando aus und liefert das CompletedProcess-Ergebnis.
 
     Bei check=True und Fehlercode wird CommandError geworfen.
@@ -85,6 +103,7 @@ def run(cmd: list[str], *, cwd=None, check: bool = True, timeout=None, env=None
         cwd=str(cwd) if cwd else None,
         env=env,
         timeout=timeout,
+        input=input,
         capture_output=True,
         text=True,
     )
@@ -129,7 +148,7 @@ def variant_reachable(cfg: dict) -> tuple[bool, str]:
         return False, f"Gitea nicht erreichbar ({exc})"
     try:
         proc = run(
-            ["kubectl", "get", "deployment", cfg["deployment"], "-n", cfg["deploy_ns"]],
+            kubectl(cfg, "get", "deployment", cfg["deployment"], "-n", cfg["deploy_ns"]),
             check=False,
         )
     except FileNotFoundError:
@@ -204,7 +223,9 @@ class AttackTest:
         return run(cmd + list(args))
 
     def commit(self, msg: str, *, author: tuple[str, str] | None = None) -> None:
-        self.git("commit", "-am", msg, author=author)
+        # Der Angreifer besitzt keinen Signaturschlüssel. Eine globale
+        # Signatur-Einstellung des Rechners darf den Angriff nicht verfälschen.
+        self.git("-c", "commit.gpgsign=false", "commit", "-am", msg, author=author)
 
     def push(self, branch: str | None = None) -> None:
         """Push nach <branch> (Default: Varianten-Branch). Ein abgelehnter Push
@@ -218,19 +239,39 @@ class AttackTest:
     def head_sha(self) -> str:
         return self.git("rev-parse", "HEAD").stdout.strip()
 
+    def remote_sha(self) -> str:
+        """Aktueller Commit des Varianten-Branches im VCS."""
+        out = run(["git", "ls-remote", self.push_url(), f"refs/heads/{self.cfg['branch']}"]).stdout
+        return out.split()[0] if out.strip() else ""
+
+    def reset_remote(self, sha: str) -> None:
+        """Setzt den Varianten-Branch im VCS per Force-Push auf sha zurück.
+        Es entsteht kein neuer Commit. Die Prüfung im VCS lässt das daher zu."""
+        self.git("push", "--force", "origin", f"{sha}:refs/heads/{self.cfg['branch']}")
+
     # ---- Kette / Probe ---------------------------------------------------- #
     def _run_pipeline(self, run_file: str, timeout: str) -> tuple[bool, str]:
-        """Startet einen PipelineRun und wartet auf Abschluss. (ok, name)."""
-        path = str(self.repo_root / run_file)
+        """Startet einen PipelineRun und wartet auf Abschluss. (ok, name).
+        Ein Fehlschlag wird sofort erkannt und nicht erst nach dem Timeout."""
+        # Build-Auftrag der verifizierbaren Kette (AN2a): aktueller Stand des Branches im VCS
+        manifest = (self.repo_root / run_file).read_text()
+        if "__REVISION__" in manifest:
+            manifest = manifest.replace("__REVISION__", self.remote_sha())
         name = run(
-            ["kubectl", "create", "-f", path, "-o", "jsonpath={.metadata.name}"]
+            kubectl(self.cfg, "create", "-f", "-", "-o", "jsonpath={.metadata.name}"),
+            input=manifest,
         ).stdout.strip()
-        res = run(
-            ["kubectl", "wait", "--for=condition=Succeeded",
-             f"pipelinerun/{name}", f"--timeout={timeout}"],
-            check=False,
-        )
-        return res.returncode == 0, name
+        deadline = time.time() + int(timeout.rstrip("s"))
+        while time.time() < deadline:
+            status = run(
+                kubectl(self.cfg, "get", "pipelinerun", name,
+                        "-o", "jsonpath={.status.conditions[0].status}"),
+                check=False,
+            ).stdout.strip()
+            if status in ("True", "False"):
+                return status == "True", name
+            time.sleep(5)
+        return False, name
 
     def _chain(self, *, fatal: bool) -> None:
         """Distribute- dann Deploy-Pipeline starten, dann Rollout abwarten.
@@ -251,8 +292,8 @@ class AttackTest:
                 print(f"    ! {label}-Pipeline nicht erfolgreich — Cleanup fährt fort")
                 return
         run(
-            ["kubectl", "rollout", "status", f"deployment/{c['deployment']}",
-             "-n", c["deploy_ns"], "--timeout=180s"],
+            kubectl(c, "rollout", "status", f"deployment/{c['deployment']}",
+                    "-n", c["deploy_ns"], "--timeout=180s"),
             check=False,
         )
 
@@ -271,8 +312,8 @@ class AttackTest:
         c = self.cfg
         port = c["probe_port"]
         proc = subprocess.Popen(
-            ["kubectl", "port-forward", "-n", c["deploy_ns"],
-             f"deployment/{c['deployment']}", f"{port}:{c['container_port']}"],
+            kubectl(c, "port-forward", "-n", c["deploy_ns"],
+                    f"deployment/{c['deployment']}", f"{port}:{c['container_port']}"),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
