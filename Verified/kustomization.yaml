@@ -32,6 +32,8 @@ resources:
 - Build/tasks/verify-revision.yaml
 # Prüfung der Autorisierung in der Build-Plattform (AN2b)
 - Build/tasks/verify-authorization.yaml
+# Prüfung der Abhängigkeitsdefinition in der Build-Plattform (AN3)
+- Build/tasks/verify-dependencies.yaml
 
 patches:
 # Gitea ist in diesem Cluster über Port 3001 erreichbar (siehe cluster-config.yaml)

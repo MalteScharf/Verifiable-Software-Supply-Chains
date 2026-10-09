@@ -1,0 +1,6 @@
+# Trusted Key Store: öffentliche Signaturschlüssel der Authorizer (AN2b).
+# Nur diese Schlüssel dürfen einen Quellcodestand für den Build freigeben.
+# Format je Zeile: <E-Mail> namespaces="git" <Schlüsseltyp> <öffentlicher Schlüssel>
+#
+# Eintrag erzeugen (im Hauptordner des Repos ausführen):
+#   echo "authorizer@example.com namespaces=\"git\" $(cat ~/.ssh/authorizer_signing.pub)" >> Verified/Trust/allowed_signers_authorizer

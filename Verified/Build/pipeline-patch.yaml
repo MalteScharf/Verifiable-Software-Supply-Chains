@@ -4,7 +4,8 @@
 # 3. verify-revision prüft den übernommenen Stand gegen den Build-Auftrag (AN2a)
 # 4. verify-signatures prüft die Signaturen aller Commits (AN1)
 # 5. verify-authorization prüft die Freigabe durch einen Authorizer (AN2b)
-# 6. build-and-push startet erst nach erfolgreichen Prüfungen
+# 6. verify-dependencies prüft die Abhängigkeitsdefinition (AN3)
+# 7. build-and-push startet erst nach erfolgreichen Prüfungen
 - op: add
   path: /spec/params/-
   value: {name: revision, type: string}
@@ -53,6 +54,16 @@
     workspaces:
     - name: source
       workspace: shared-data
+- op: add
+  path: /spec/tasks/4
+  value:
+    name: verify-dependencies
+    runAfter: ["verify-authorization"]
+    taskRef:
+      name: verify-dependencies
+    workspaces:
+    - name: source
+      workspace: shared-data
 - op: replace
-  path: /spec/tasks/4/runAfter
-  value: ["verify-authorization"]
+  path: /spec/tasks/5/runAfter
+  value: ["verify-dependencies"]

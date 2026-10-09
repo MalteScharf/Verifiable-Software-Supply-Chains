@@ -1,0 +1,25 @@
+# Prüfung der Abhängigkeitsdefinition in der Build-Plattform (AN3).
+# Der Build läuft nur, wenn alle Abhängigkeiten mit Hashwert festgelegt sind
+# und das Dockerfile genau diese Festlegung verwendet.
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: verify-dependencies
+spec:
+  workspaces:
+  - name: source
+  steps:
+  - name: verify
+    image: node:20-alpine
+    workingDir: $(workspaces.source.path)
+    script: |
+      #!/bin/sh
+      fail() { echo "Abgelehnt: $1"; exit 1; }
+      [ -f package-lock.json ] || fail "package-lock.json fehlt"
+      node -e 'const p = require("./package-lock.json").packages;
+        process.exit(Object.entries(p).some(([k, v]) => k && !v.integrity) ? 1 : 0)' \
+        || fail "Paket ohne Hashwert im Lockfile"
+      grep -iE '^FROM ' Dockerfile | grep -qvE '@sha256:[0-9a-f]{64}' && fail "Basis-Image ohne Digest"
+      grep -qE 'npm +(install|i|add)( |$)' Dockerfile && fail "Dockerfile nutzt npm install"
+      grep -qE '^RUN npm ci' Dockerfile || fail "Dockerfile installiert nicht mit npm ci"
+      echo "Abhängigkeitsdefinition vollständig und verwendet"
