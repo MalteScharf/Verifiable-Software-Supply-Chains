@@ -6,7 +6,7 @@ unveränderten Manifeste aus `Conventional/`. Alle Änderungen stehen in
 `kustomization.yaml`.
 
 Alle Befehle werden im Hauptordner des Repos ausgeführt. Voraussetzungen wie in
-`Conventional/readme.md`, zusätzlich `curl`.
+`Conventional/readme.md`, zusätzlich `curl`, `jq` und `cosign`, für die Tests von AN4 außerdem `crane`.
 
 ## Einmalige Einrichtung
 
@@ -66,12 +66,35 @@ Alle Befehle werden im Hauptordner des Repos ausgeführt. Voraussetzungen wie in
    make verified-check-trust
    ```
 
+6. **Herkunftsnachweis mit Tekton Chains (AN4)**
+
+   Installiert Tekton Chains, legt den Signaturschlüssel der Build-Plattform im
+   Cluster an und übernimmt dessen öffentlichen Teil als `build_platform.pub` in den
+   Trusted Key Store. Der private Schlüssel liegt nur im Cluster.
+
+   ```sh
+   make verified-chains
+   make verified-base          # Pipeline mit Resolver und neuem Task-Result anwenden
+   make verified-check-chains  # Pipeline und Gitea dürfen den Schlüssel nicht lesen
+   make verified-check-trust
+   ```
+
+   Nach dem ersten erfolgreichen Build legt der Administrator die Referenzliste der
+   Build-Definition fest. Nur nach bewussten Änderungen an Pipeline oder Tasks wiederholen.
+
+   ```sh
+   make verified-pin-build-definition
+   ```
+
 ## Benutzung
 
 ```sh
 make verified-approve  # Freigabe: signierter Tag des Authorizers auf den aktuellen Commit
 make verified-build    # Clone, Build, Push in die Registry
 make verified-deploy   # Deployment neu starten
+make verified-provenance  # Herkunftsnachweis des letzten Builds anzeigen
+make verified-verify      # Herkunftsnachweis von demo-app:latest prüfen (AN4)
+make verified-test-provenance  # Tests des Herkunftsnachweises (AN4)
 ```
 
 `make verified-build` baut den aktuellen Commit der lokalen Demo-App
@@ -96,3 +119,9 @@ Gebaut wird nur ein Stand, für den ein vom Authorizer signierter Tag existiert.
 | `Build/tasks/verify-revision.yaml`, `Distribute/runs/run-gitea.yaml` | Quellreferenz (AN2a): Der Build-Auftrag nennt den Commit-Hash (Parameter `revision`). `git-clone` holt genau diesen Commit, `verify-revision` prüft ihn vor der Signaturprüfung. |
 | `Build/tasks/verify-authorization.yaml` | Autorisierung (AN2b): prüft, ob ein Tag auf den Commit zeigt, den ein Authorizer aus dem Trusted Key Store signiert hat. Freigabe mit `make verified-approve`. |
 | `Build/tasks/verify-dependencies.yaml` | Abhängigkeitsdefinition (AN3): prüft, dass `package-lock.json` für jedes Paket einen Hashwert enthält, jede `FROM`-Zeile einen Digest nennt und das Dockerfile mit `npm ci` installiert. Den Hashwert jedes Pakets prüft `npm ci` beim Build. |
+| `Chains/chains-config.yaml` | Herkunftsnachweis (AN4): Konfiguration von Tekton Chains. Ein Nachweis pro Build im Format SLSA 1.0, Ablage in der Registry neben dem Image. |
+| `Build/pipeline-resolver-patch.yaml`, `Distribute/runs/run-gitea.yaml` | Build-Definition (AN4): Pipeline und Tasks werden über den Cluster-Resolver geladen. Ihr Digest steht damit im Herkunftsnachweis. |
+| `Build/tasks/verify-authorization.yaml` | Autorisierungsnachweis (AN4): gibt das signierte Tag-Objekt als Result `AUTHORIZATION_TAG` aus. Chains übernimmt es in den Herkunftsnachweis. |
+| `Trust/build_platform.pub` | Öffentlicher Schlüssel der Build-Plattform im Trusted Key Store (AN4), erzeugt mit `make verified-chains`. |
+| `Trust/build_definition` | Referenzliste der Build-Definition im Trusted Key Store (AN4): erwartete Digests von Pipeline und Tasks, festgelegt mit `make verified-pin-build-definition`. |
+| `Verify/verify-provenance.sh` | Vorläufiger Verifier (AN4): prüft Echtheit und Bindung, Freigabe und Build-Definition des Herkunftsnachweises. Aufruf über `make verified-verify`. |

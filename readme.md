@@ -12,6 +12,7 @@ läuft in einem eigenen lokalen kind-Cluster.
   `Verified/readme.md`.
 - `Adversarial/` – adversariale Tests, die dokumentierte Angriffe gegen beide
   Ausbaustufen ausführen. Siehe `Adversarial/README.md`.
-- `Makefile` – Befehle für beide Ausbaustufen.
+- `Makefile` und `make/` – Befehle für beide Ausbaustufen, nach Ausbaustufe und
+  Anforderung auf Teildateien verteilt. Übersicht aller Befehle mit `make help`.
 
 Alle Befehle in den READMEs werden im Hauptordner des Repos ausgeführt.

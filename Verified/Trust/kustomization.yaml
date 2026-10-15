@@ -1,6 +1,8 @@
 # Trusted Key Store (AN1, AN2b)
-# Genau eine ConfigMap "trusted-key-store" im Namespace "trust" mit zwei Einträgen:
-# allowed_signers_producer (Producer, AN1) und allowed_signers_authorizer (Authorizer, AN2b).
+# Genau eine ConfigMap "trusted-key-store" im Namespace "trust" mit vier Einträgen:
+# allowed_signers_producer (Producer, AN1), allowed_signers_authorizer (Authorizer, AN2b),
+# build_platform.pub (öffentlicher Schlüssel der Build-Plattform, AN4) und
+# build_definition (Referenzliste der Build-Definition, AN4).
 # Die Prüfer (Gitea, Tekton, später Kyverno) lesen die ConfigMap über die
 # Kubernetes-API. Wer lesen darf, legt trust.yaml fest.
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -15,6 +17,8 @@ configMapGenerator:
   files:
   - allowed_signers_producer
   - allowed_signers_authorizer
+  - build_platform.pub
+  - build_definition
 
 generatorOptions:
   # fester Name, damit alle Prüfer immer auf "trusted-key-store" verweisen können

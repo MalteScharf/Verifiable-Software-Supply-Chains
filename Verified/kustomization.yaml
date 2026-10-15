@@ -45,6 +45,11 @@ patches:
   target:
     kind: Pipeline
     name: distribute
+# Build-Definition über den Cluster-Resolver laden (AN4), nach pipeline-patch.yaml
+- path: Build/pipeline-resolver-patch.yaml
+  target:
+    kind: Pipeline
+    name: distribute
 
 # Pre-receive-Hook als ConfigMap im Namespace gitea
 configMapGenerator:

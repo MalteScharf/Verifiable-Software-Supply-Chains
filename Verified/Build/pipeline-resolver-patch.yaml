@@ -1,0 +1,29 @@
+# Build-Definition mit Digest im Herkunftsnachweis (AN4):
+# Alle Tasks der Distribute-Pipeline werden über den Cluster-Resolver geladen.
+# Tekton berechnet dabei einen Digest über den Inhalt jedes Tasks, den
+# Tekton Chains in den Nachweis übernimmt (resolvedDependencies).
+# Wird nach Build/pipeline-patch.yaml angewendet (Reihenfolge der Tasks siehe dort).
+- {op: test, path: /spec/tasks/0/name, value: fetch-source}
+- op: replace
+  path: /spec/tasks/0/taskRef
+  value: {resolver: cluster, params: [{name: kind, value: task}, {name: name, value: git-clone}, {name: namespace, value: default}]}
+- {op: test, path: /spec/tasks/1/name, value: verify-revision}
+- op: replace
+  path: /spec/tasks/1/taskRef
+  value: {resolver: cluster, params: [{name: kind, value: task}, {name: name, value: verify-revision}, {name: namespace, value: default}]}
+- {op: test, path: /spec/tasks/2/name, value: verify-signatures}
+- op: replace
+  path: /spec/tasks/2/taskRef
+  value: {resolver: cluster, params: [{name: kind, value: task}, {name: name, value: verify-signatures}, {name: namespace, value: default}]}
+- {op: test, path: /spec/tasks/3/name, value: verify-authorization}
+- op: replace
+  path: /spec/tasks/3/taskRef
+  value: {resolver: cluster, params: [{name: kind, value: task}, {name: name, value: verify-authorization}, {name: namespace, value: default}]}
+- {op: test, path: /spec/tasks/4/name, value: verify-dependencies}
+- op: replace
+  path: /spec/tasks/4/taskRef
+  value: {resolver: cluster, params: [{name: kind, value: task}, {name: name, value: verify-dependencies}, {name: namespace, value: default}]}
+- {op: test, path: /spec/tasks/5/name, value: build-and-push}
+- op: replace
+  path: /spec/tasks/5/taskRef
+  value: {resolver: cluster, params: [{name: kind, value: task}, {name: name, value: kaniko}, {name: namespace, value: default}]}

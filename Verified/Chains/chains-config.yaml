@@ -1,0 +1,20 @@
+# Konfiguration von Tekton Chains (AN4), Steuerungsebene der Build-Plattform.
+# Wird als Merge-Patch auf die ConfigMap chains-config angewendet, die bei der
+# Installation von Chains angelegt wird (siehe make/verified-chains.mk).
+data:
+  # Herkunftsnachweis pro PipelineRun im Format SLSA 1.0 (Chains-intern: slsa/v2alpha4)
+  artifacts.pipelinerun.format: slsa/v2alpha4
+  # Ablage am PipelineRun (zum Auslesen mit kubectl) und in der Registry neben dem Image
+  artifacts.pipelinerun.storage: tekton,oci
+  # Typ-Hinweise (IMAGE_URL, IMAGE_DIGEST) auch in den Results der Tasks suchen
+  artifacts.pipelinerun.enable-deep-inspection: "true"
+  # Kein eigener Nachweis pro TaskRun und keine zusätzliche Signatur des Images:
+  # pro Build entsteht genau ein Herkunftsnachweis
+  artifacts.taskrun.storage: ""
+  artifacts.oci.storage: ""
+  # Registry ohne TLS (konventionelle Lieferkette, Distribute-Phase)
+  storage.oci.repository.insecure: "true"
+  # Kein Transparenzprotokoll (Selbstbetrieb ohne externe Dienste, H3)
+  transparency.enabled: "false"
+  # Kennung der Build-Plattform im Nachweis (runDetails.builder.id)
+  builder.id: https://software-supply-chain-verified/tekton-chains

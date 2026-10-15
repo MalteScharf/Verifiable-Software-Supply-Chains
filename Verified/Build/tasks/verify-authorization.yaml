@@ -1,6 +1,9 @@
 # Prüfung der Autorisierung in der Build-Plattform (AN2b).
 # Für den Commit aus dem Build-Auftrag muss ein Tag existieren, den ein
 # Authorizer aus dem Trusted Key Store signiert hat. Sonst bricht die Pipeline ab.
+# Das signierte Tag-Objekt wird als Result AUTHORIZATION_TAG ausgegeben. Tekton Chains
+# übernimmt es in den Herkunftsnachweis (AN4). Der Verifier prüft dort die Signatur
+# des Authorizers erneut, daher muss er der Build-Plattform hierfür nicht vertrauen.
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
@@ -8,6 +11,9 @@ metadata:
 spec:
   params:
   - name: revision
+  results:
+  - name: AUTHORIZATION_TAG
+    description: Signiertes Tag-Objekt der Freigabe (Ausgabe von git cat-file tag)
   workspaces:
   - name: source
   volumes:
@@ -34,7 +40,10 @@ spec:
       git config --global --add safe.directory '*'
       git fetch -q origin 'refs/tags/*:refs/tags/*'
       for t in $(git tag --points-at "$REV"); do
-        git -c gpg.ssh.allowedSignersFile=/tks/allowed_signers verify-tag "$t" \
-          && { echo "Freigegeben durch Tag $t"; exit 0; }
+        if git -c gpg.ssh.allowedSignersFile=/tks/allowed_signers verify-tag "$t"; then
+          echo "Freigegeben durch Tag $t"
+          git cat-file tag "$t" > "$(results.AUTHORIZATION_TAG.path)"
+          exit 0
+        fi
       done
       echo "Abgelehnt: keine gültige Freigabe für $REV"; exit 1

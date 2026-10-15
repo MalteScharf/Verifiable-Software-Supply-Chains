@@ -5,8 +5,12 @@ kind: PipelineRun
 metadata:
   generateName: distribute-run-
 spec:
-  pipelineRef:
-    name: distribute
+  pipelineRef:            # Pipeline über den Cluster-Resolver laden (Digest im Nachweis, AN4)
+    resolver: cluster
+    params:
+    - {name: kind, value: pipeline}
+    - {name: name, value: distribute}
+    - {name: namespace, value: default}
   params:
   - name: repo-url
     value: http://gitea.gitea.svc.cluster.local:3000/VCSadmin/demo-app.git
