@@ -1,6 +1,6 @@
 # Ergebnisse: Tests des Herkunftsnachweises (AN4)
 
-Ausgeführt am 2026-10-14 15:52
+Ausgeführt am 2026-10-15 10:53
 
 | Nr. | Fall | Erwartet | Ergebnis | Meldung des Verifiers | Bewertung |
 |---|---|---|---|---|---|

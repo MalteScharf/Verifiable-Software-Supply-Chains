@@ -34,6 +34,8 @@ resources:
 - Build/tasks/verify-authorization.yaml
 # Prüfung der Abhängigkeitsdefinition in der Build-Plattform (AN3)
 - Build/tasks/verify-dependencies.yaml
+# Stückliste des fertigen Images (AN5)
+- Build/tasks/sbom.yaml
 
 patches:
 # Gitea ist in diesem Cluster über Port 3001 erreichbar (siehe cluster-config.yaml)
@@ -47,6 +49,11 @@ patches:
     name: distribute
 # Build-Definition über den Cluster-Resolver laden (AN4), nach pipeline-patch.yaml
 - path: Build/pipeline-resolver-patch.yaml
+  target:
+    kind: Pipeline
+    name: distribute
+# Stückliste nach dem Build erzeugen (AN5), nach pipeline-resolver-patch.yaml
+- path: Build/pipeline-sbom-patch.yaml
   target:
     kind: Pipeline
     name: distribute

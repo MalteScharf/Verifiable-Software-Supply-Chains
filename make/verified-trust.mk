@@ -5,7 +5,7 @@ AUTHORIZER_EMAIL := authorizer@example.com
 AUTHORIZER_KEY   := $(HOME)/.ssh/authorizer_signing.pub
 
 # Trusted Key Store: eine ConfigMap im Namespace trust, gelesen von diesen Prüfern
-TRUST_FILES   := allowed_signers_producer allowed_signers_authorizer build_platform.pub build_definition
+TRUST_FILES   := allowed_signers_producer allowed_signers_authorizer build_platform.pub build_definition malicious_packages
 TRUST_READERS := system:serviceaccount:gitea:default system:serviceaccount:default:default
 
 ##@ Verifizierbare Lieferkette: Vertrauen und Freigabe

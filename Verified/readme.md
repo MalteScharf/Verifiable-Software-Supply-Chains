@@ -6,7 +6,7 @@ unveränderten Manifeste aus `Conventional/`. Alle Änderungen stehen in
 `kustomization.yaml`.
 
 Alle Befehle werden im Hauptordner des Repos ausgeführt. Voraussetzungen wie in
-`Conventional/readme.md`, zusätzlich `curl`, `jq` und `cosign`, für die Tests von AN4 außerdem `crane`.
+`Conventional/readme.md`, zusätzlich `curl`, `jq`, `cosign` und `crane`.
 
 ## Einmalige Einrichtung
 
@@ -86,6 +86,15 @@ Alle Befehle werden im Hauptordner des Repos ausgeführt. Voraussetzungen wie in
    make verified-pin-build-definition
    ```
 
+7. **Stückliste (AN5)**
+
+   Holt die Meldeliste von OpenSSF, legt ihren Index in die Registry und seinen
+   Digest als `malicious_packages` in den Trusted Key Store. Zum Aktualisieren erneut ausführen.
+
+   ```sh
+   make verified-malicious-packages
+   ```
+
 ## Benutzung
 
 ```sh
@@ -93,8 +102,7 @@ make verified-approve  # Freigabe: signierter Tag des Authorizers auf den aktuel
 make verified-build    # Clone, Build, Push in die Registry
 make verified-deploy   # Deployment neu starten
 make verified-provenance  # Herkunftsnachweis des letzten Builds anzeigen
-make verified-verify      # Herkunftsnachweis von demo-app:latest prüfen (AN4)
-make verified-test-provenance  # Tests des Herkunftsnachweises (AN4)
+make verified-verify      # Herkunftsnachweis und Stückliste von demo-app:latest prüfen (AN4, AN5)
 ```
 
 `make verified-build` baut den aktuellen Commit der lokalen Demo-App
@@ -124,4 +132,6 @@ Gebaut wird nur ein Stand, für den ein vom Authorizer signierter Tag existiert.
 | `Build/tasks/verify-authorization.yaml` | Autorisierungsnachweis (AN4): gibt das signierte Tag-Objekt als Result `AUTHORIZATION_TAG` aus. Chains übernimmt es in den Herkunftsnachweis. |
 | `Trust/build_platform.pub` | Öffentlicher Schlüssel der Build-Plattform im Trusted Key Store (AN4), erzeugt mit `make verified-chains`. |
 | `Trust/build_definition` | Referenzliste der Build-Definition im Trusted Key Store (AN4): erwartete Digests von Pipeline und Tasks, festgelegt mit `make verified-pin-build-definition`. |
-| `Verify/verify-provenance.sh` | Vorläufiger Verifier (AN4): prüft Echtheit und Bindung, Freigabe und Build-Definition des Herkunftsnachweises. Aufruf über `make verified-verify`. |
+| `Verify/verify-provenance.sh` | Vorläufiger Verifier (AN4, AN5): prüft Herkunftsnachweis, Stückliste, Lockfile und Meldeliste. Aufruf über `make verified-verify`. |
+| `Build/tasks/sbom.yaml`, `Build/pipeline-sbom-patch.yaml` | Stückliste (AN5): Syft erzeugt sie nach dem Build, cosign legt sie neben das Image, ihr Digest steht im Herkunftsnachweis. |
+| `Trust/malicious_packages`, `Verify/malicious-*.jq` | Meldeliste (AN5b): Stand und Digest des Index im Trusted Key Store, Index und Abgleich mit jq. |

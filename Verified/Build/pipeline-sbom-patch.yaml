@@ -1,0 +1,21 @@
+# Stückliste nach dem Build erzeugen (AN5): Task sbom am Ende der Distribute-Pipeline.
+# Er erhält Referenz und Digest des Images von kaniko und wird wie alle Tasks
+# über den Cluster-Resolver geladen (Digest im Herkunftsnachweis, AN4).
+# Wird nach Build/pipeline-resolver-patch.yaml angewendet.
+- {op: test, path: /spec/tasks/5/name, value: build-and-push}
+- op: add
+  path: /spec/tasks/-
+  value:
+    name: sbom
+    runAfter: ["build-and-push"]
+    taskRef:
+      resolver: cluster
+      params:
+      - {name: kind, value: task}
+      - {name: name, value: sbom}
+      - {name: namespace, value: default}
+    params:
+    - name: IMAGE_URL
+      value: $(tasks.build-and-push.results.IMAGE_URL)
+    - name: IMAGE_DIGEST
+      value: $(tasks.build-and-push.results.IMAGE_DIGEST)

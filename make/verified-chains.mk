@@ -29,7 +29,7 @@ SHOW_PROVENANCE = R="$(RUN)"; \
 
 ##@ Verifizierbare Lieferkette: Herkunftsnachweis (AN4)
 .PHONY: verified-chains verified-chains-key verified-check-chains verified-provenance \
-        verified-pin-build-definition verified-verify verified-test-provenance
+        verified-pin-build-definition verified-verify
 
 verified-chains:      ## Tekton Chains installieren, konfigurieren und Signaturschlüssel anlegen
 	kubectl --context $(VER_CTX) apply -f $(CHAINS_RELEASE)
@@ -95,11 +95,10 @@ verified-pin-build-definition: ## Referenzliste der Build-Definition aus dem let
 	cat $(BUILD_DEFINITION)
 	kubectl kustomize Verified/Trust | kubectl --context $(VER_CTX) apply -f -
 
-verified-verify:      ## Herkunftsnachweis eines Images prüfen (Standard: demo-app:latest, sonst DIGEST=sha256:...)
+verified-verify:      ## Herkunftsnachweis und Stückliste eines Images prüfen (Standard: demo-app:latest, sonst DIGEST=sha256:...)
 	@kubectl --context $(VER_CTX) port-forward -n registry svc/registry $(VERIFY_PORT):5000 >/dev/null 2>&1 & PF=$$!; \
 	trap "kill $$PF 2>/dev/null" EXIT; \
 	for i in $$(seq 1 20); do curl -sf -o /dev/null http://localhost:$(VERIFY_PORT)/v2/ && break; sleep 0.5; done; \
-	sh Verified/Verify/verify-provenance.sh localhost:$(VERIFY_PORT) demo-app $(DIGEST)
+	VCS_URL=$(VER_GITEA_URL)/$(GITEA_USER)/$(GITEA_REPO).git \
+		sh Verified/Verify/verify-provenance.sh localhost:$(VERIFY_PORT) demo-app $(DIGEST)
 
-verified-test-provenance: ## Tests des Herkunftsnachweises (AN4), Ergebnis in Verified/Verify/test-provenance-results.md
-	sh Verified/Verify/test-provenance.sh

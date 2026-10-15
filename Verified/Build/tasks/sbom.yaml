@@ -1,0 +1,54 @@
+# Stückliste des fertigen Images (AN5).
+# Läuft nach dem Build und liest das Image über seinen Digest aus der Registry,
+# nicht aus dem Workspace. Der Task signiert nichts und hat keinen Schlüssel (H1).
+# 1. scan:   Syft leitet die Stückliste im Format CycloneDX aus dem Image ab
+# 2. attach: cosign legt sie neben dem Image in der Registry ab
+#            (Tag sha256-<Digest des Images>.sbom)
+# 3. report: der SHA-256-Wert der Stückliste wird als Result SBOM_DIGEST gemeldet.
+#            Tekton Chains übernimmt ihn in den signierten Herkunftsnachweis
+#            (runDetails.byproducts). So ist die Stückliste an Image und
+#            Build-Plattform gebunden.
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: sbom
+spec:
+  params:
+  - name: IMAGE_URL
+    description: Referenz des gebauten Images (Result IMAGE_URL von kaniko)
+  - name: IMAGE_DIGEST
+    description: Digest des gebauten Images (Result IMAGE_DIGEST von kaniko)
+  results:
+  - name: SBOM_DIGEST
+    description: SHA-256-Wert der abgelegten Stückliste
+  volumes:
+  - {name: sbom, emptyDir: {}}
+  - {name: tmp, emptyDir: {}}
+  steps:
+  - name: scan
+    image: ghcr.io/anchore/syft:v1.54.1@sha256:3eb5379ba7b409c3f4069b686110527af0c47df993fa5c10d13e7cf34f49b1aa
+    env:
+    - {name: SYFT_REGISTRY_INSECURE_USE_HTTP, value: "true"}  # Registry ohne TLS
+    - {name: SYFT_FILE_METADATA_SELECTION, value: "none"}     # nur Pakete, keine Einzeldateien
+    - {name: SYFT_CHECK_FOR_APP_UPDATE, value: "false"}
+    args: ["scan", "registry:$(params.IMAGE_URL)@$(params.IMAGE_DIGEST)",
+           "-o", "cyclonedx-json=/sbom/sbom.cdx.json"]
+    volumeMounts:
+    - {name: sbom, mountPath: /sbom}
+    - {name: tmp, mountPath: /tmp}
+  - name: attach
+    image: ghcr.io/sigstore/cosign/cosign:v3.1.3@sha256:9e5c2f2edc34351160407ca3416c61855bdf9403c3c5936e0f0be7fc261611b8
+    args: ["attach", "sbom", "--sbom", "/sbom/sbom.cdx.json", "--type", "cyclonedx",
+           "--allow-insecure-registry", "--allow-http-registry",
+           "$(params.IMAGE_URL)@$(params.IMAGE_DIGEST)"]
+    volumeMounts:
+    - {name: sbom, mountPath: /sbom}
+  - name: report
+    image: docker.io/library/bash:5.1.4@sha256:c523c636b722339f41b6a431b44588ab2f762c5de5ec3bd7964420ff982fb1d9
+    volumeMounts:
+    - {name: sbom, mountPath: /sbom}
+    script: |
+      set -e
+      d="sha256:$(sha256sum /sbom/sbom.cdx.json | cut -d' ' -f1)"
+      printf '%s' "$d" > $(results.SBOM_DIGEST.path)
+      echo "Stückliste $d"

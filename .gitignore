@@ -3,3 +3,5 @@ howtos.md
 Verified/Produce/demo-app
 *.pyc
 Verified/spike/
+.cache/
+Verified/Verify/test-*.sh
