@@ -104,3 +104,17 @@ make verified-hook
   Backdoor-Commit über das kompromittierte `VCSadmin`-Konto; die Backdoor
   reagiert im deployten Pod auf den Header `User-Agentt: zerodium…` (vereinfachter
   Marker, kein Kommando-Exec). Baseline: `vulnerable`.
+
+- `tjactions-ref-redirect` — tj-actions/changed-files (2025), Umlenkung einer
+  Quellreferenz an VG2 (VCS → Build-Plattform), CAPEC-560 und CAPEC-445,
+  verletzte Annahme A2. Erstellt als Renovate-Bot (unsigniert) einen
+  Backdoor-Commit außerhalb der Historie und lenkt `main` per Force-Push darauf
+  um; die Backdoor antwortet im deployten Pod unter `/.well-known/renovate`
+  (zweifach Base64-kodierter Marker). Baseline: `vulnerable`, gehärtet: `blocked`.
+- `uaparser-image-bypass` — ua-parser-js (2021), Image an der Build-Plattform
+  vorbei an VG4 (Build-Plattform → Distributor), CAPEC-560, verletzte Annahme A4.
+  Rollt ein fremdes, harmloses Standard-Image (busybox) direkt in den geschützten
+  Namespace `deploy` aus, ohne die Build-Pipeline zu durchlaufen. Das Image
+  besitzt daher keinen Herkunftsnachweis. Prüfkriterium ist die Zulassung des
+  Images, nicht sein Verhalten. Baseline: `vulnerable` (Image zugelassen),
+  gehärtet: `blocked` (Zulassung durch Kyverno abgelehnt).
