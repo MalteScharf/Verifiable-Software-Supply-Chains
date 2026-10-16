@@ -1,0 +1,64 @@
+# Prüfdienst der Zulassungskontrolle (AN7) im Namespace verifier.
+# Kyverno ruft ihn für die Prüfschritte auf, die es nicht selbst abbilden kann.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: verifier
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pruefdienst
+  namespace: verifier
+---
+# Tokens von Kyverno über die Kubernetes-API prüfen (TokenReview)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pruefdienst-tokenreview
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+- kind: ServiceAccount
+  name: pruefdienst
+  namespace: verifier
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pruefdienst
+  namespace: verifier
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pruefdienst}
+  template:
+    metadata:
+      labels: {app: pruefdienst}
+    spec:
+      serviceAccountName: pruefdienst
+      containers:
+      - name: pruefdienst
+        image: pruefdienst          # Digest über kustomization.yaml (images)
+        ports: [{containerPort: 8080}]
+        securityContext:
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+        volumeMounts: [{name: tmp, mountPath: /tmp}]
+        readinessProbe:
+          httpGet: {path: /healthz, port: 8080}
+      volumes:
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pruefdienst
+  namespace: verifier
+spec:
+  selector: {app: pruefdienst}
+  ports: [{port: 8080, targetPort: 8080}]

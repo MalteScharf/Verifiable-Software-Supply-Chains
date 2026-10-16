@@ -1,0 +1,12 @@
+# Deploy-Auftrag der verifizierbaren Kette (AN6): nennt das Image über den Digest.
+# Der Platzhalter __IMAGE__ wird beim Start ersetzt (make verified-deploy).
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: deploy-run-
+spec:
+  pipelineRef:
+    name: deploy
+  params:
+  - name: image
+    value: "__IMAGE__"

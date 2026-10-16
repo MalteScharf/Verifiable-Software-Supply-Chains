@@ -1,0 +1,18 @@
+# Zulassungskontrolle (AN6, AN7): Kyverno in fester Version.
+# Die Registry der Lieferkette läuft ohne TLS. Kyverno darf sie daher über
+# HTTP ansprechen (allowInsecureRegistry), sonst kann es keine Nachweise laden.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- https://github.com/kyverno/kyverno/releases/download/v1.19.1/install.yaml
+
+patches:
+- target: {kind: Deployment, name: kyverno-admission-controller, namespace: kyverno}
+  patch: |-
+    - {op: test, path: /spec/template/spec/containers/0/args/32, value: --allowInsecureRegistry=false}
+    - {op: replace, path: /spec/template/spec/containers/0/args/32, value: --allowInsecureRegistry=true}
+- target: {kind: Deployment, name: kyverno-reports-controller, namespace: kyverno}
+  patch: |-
+    - {op: test, path: /spec/template/spec/containers/0/args/23, value: --allowInsecureRegistry=false}
+    - {op: replace, path: /spec/template/spec/containers/0/args/23, value: --allowInsecureRegistry=true}

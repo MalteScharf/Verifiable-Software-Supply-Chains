@@ -1,0 +1,97 @@
+# Zulassungskontrolle (AN6, AN7) mit Kyverno, ClusterPolicy mit verifyImages.
+# ImageValidatingPolicy kann Nachweise ohne Transparenzprotokoll nicht prüfen,
+# daher dieser Richtlinientyp.
+# AN6: Images nur über Digest (verifyDigest), Tags werden nicht umgeschrieben.
+# AN4 Schritt 1: Herkunftsnachweis mit dem Schlüssel der Build-Plattform signiert,
+#   an den Digest des Images gebunden und von der erwarteten builder.id.
+# AN4 Schritt 3: Digests von Pipeline und Tasks im Nachweis entsprechen der
+#   Referenzliste build_definition (verglichen werden die sortierten Digests).
+# Schlüssel und Referenzliste stammen aus dem Trusted Key Store (ConfigMap im Namespace trust).
+# AN4 Schritt 2 und AN5 Schritte 4 bis 6: Regel pruefdienst, Kyverno ruft dafür
+#   den Prüfdienst im Namespace verifier auf (Verified/Verifier).
+# Gilt in allen Namespaces außer denen der Plattform selbst (AN7). Diese führen
+# Werkzeuge aus, die nicht aus der Lieferkette stammen (Tekton, Gitea, Registry,
+# Kyverno, Prüfdienst). kube-system und kyverno nimmt Kyverno ohnehin aus.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verified-images
+spec:
+  background: false
+  webhookConfiguration:
+    failurePolicy: Fail
+    timeoutSeconds: 30
+  rules:
+  - name: herkunftsnachweis
+    match:
+      any:
+      - resources:
+          kinds: [Pod]
+    exclude:
+      any:
+      - resources:
+          namespaces: &plattform [kube-system, kube-public, kube-node-lease, local-path-storage,
+                       kyverno, tekton-pipelines, tekton-pipelines-resolvers, tekton-chains,
+                       default, gitea, registry, verifier]
+    context:
+    - name: tks
+      configMap:
+        name: trusted-key-store
+        namespace: trust
+    verifyImages:
+    - imageReferences: ["*"]
+      failureAction: Enforce
+      verifyDigest: true
+      mutateDigest: false
+      required: true
+      imageRegistryCredentials:
+        allowInsecureRegistry: true
+      attestations:
+      - type: https://slsa.dev/provenance/v1
+        attestors:
+        - entries:
+          - keys:
+              publicKeys: '{{ tks.data."build_platform.pub" }}'
+              rekor:
+                ignoreTlog: true
+              ctlog:
+                ignoreSCT: true
+        conditions:
+        - all:
+          - key: '{{ runDetails.builder.id }}'
+            operator: Equals
+            value: https://software-supply-chain-verified/tekton-chains
+            message: unerwartete builder.id im Herkunftsnachweis
+          - key: >-
+              {{ join(',', sort(buildDefinition.resolvedDependencies[?name=='pipeline' || name=='pipelineTask'].digest.sha256)) }}
+            operator: Equals
+            value: >-
+              {{ join(',', sort(map(&regex_replace_all('[^0-9a-f].*$', @, ''), split(tks.data.build_definition, 'sha256:')[1:]))) }}
+            message: Build-Definition weicht von der Referenzliste ab
+  - name: pruefdienst
+    match:
+      any:
+      - resources:
+          kinds: [Pod]
+    exclude:
+      any:
+      - resources:
+          namespaces: *plattform
+    context:
+    - name: result
+      apiCall:
+        method: POST
+        data:
+        - key: images
+          value: "{{ request.object.spec.containers[].image }}"
+        service:
+          url: http://pruefdienst.verifier.svc.cluster.local:8080/verify
+    validate:
+      failureAction: Enforce
+      message: "Prüfdienst: {{ result.reason }}"
+      deny:
+        conditions:
+          any:
+          - key: "{{ result.allowed }}"
+            operator: NotEquals
+            value: true

@@ -1,0 +1,12 @@
+# Prüfdienst der Zulassungskontrolle (AN7). Den Digest des Images trägt
+# make verified-pruefdienst nach dem Bauen ein.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- pruefdienst.yaml
+
+images:
+- name: pruefdienst
+  newName: registry.registry.svc.cluster.local:5000/pruefdienst
+  digest: sha256:fdafd2ced053f1331f6813364aabbcdcf06831a1c48f5143cab90ce17a865859

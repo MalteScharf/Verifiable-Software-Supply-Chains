@@ -1,0 +1,16 @@
+# Deploy-Phase der verifizierbaren Kette (AN6): Statt eines Rollout-Restarts
+# auf den mutablen Tag setzt der Task das Image ausdrücklich über seinen Digest.
+- {op: test, path: /spec/steps/0/name, value: restart}
+- op: replace
+  path: /spec/steps/0/name
+  value: set-image
+- op: replace
+  path: /spec/steps/0/script
+  value: |
+    #!/bin/sh
+    set -eu
+    case "$(params.image)" in
+      *@sha256:*) ;;
+      *) echo "Abgelehnt: Image ohne Digest: $(params.image)"; exit 1 ;;
+    esac
+    kubectl set image deployment/demo-app demo-app="$(params.image)" -n deploy

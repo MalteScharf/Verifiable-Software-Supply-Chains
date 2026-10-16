@@ -58,6 +58,16 @@ patches:
     kind: Pipeline
     name: distribute
 
+# Deploy über den Digest (AN6): Task setzt das Image, Deployment nennt den Digest
+- path: Deploy/deploy-task-patch.yaml
+  target:
+    kind: Task
+    name: kubectl-deploy
+- path: Deploy/deployment-patch.yaml
+  target:
+    kind: Deployment
+    name: demo-app
+
 # Pre-receive-Hook als ConfigMap im Namespace gitea
 configMapGenerator:
 - name: vcs-hooks

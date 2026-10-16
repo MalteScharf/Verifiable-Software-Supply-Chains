@@ -1,0 +1,6 @@
+# Deployment-Beschreibung des Consumers (AN6): Image über den Digest.
+# Wird von make verified-deploy geschrieben.
+- {op: test, path: /spec/template/spec/containers/0/name, value: demo-app}
+- op: replace
+  path: /spec/template/spec/containers/0/image
+  value: registry.registry.svc.cluster.local:5000/demo-app@sha256:338e1c02ea3e95d1c10d0b81f8cea74e3a6a54f9492966ad7c718a3902855024

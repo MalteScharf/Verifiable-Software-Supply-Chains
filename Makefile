@@ -15,6 +15,7 @@ include make/verified-trust.mk
 include make/verified-build.mk
 include make/verified-chains.mk
 include make/verified-sbom.mk
+include make/verified-admission.mk
 
 ##@ Allgemein
 .PHONY: help

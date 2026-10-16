@@ -95,12 +95,25 @@ Alle Befehle werden im Hauptordner des Repos ausgeführt. Voraussetzungen wie in
    make verified-malicious-packages
    ```
 
+8. **Zulassungskontrolle (AN6, AN7)**
+
+   Installiert Kyverno, macht die Registry unter ihrem Cluster-Namen auf den Knoten
+   erreichbar, baut den Prüfdienst und wendet die Richtlinie an. Vorher die Basis-Images
+   in `Verifier/Dockerfile` per Digest festlegen (`crane digest`).
+
+   ```sh
+   make verified-kyverno
+   make verified-registry-alias
+   make verified-pruefdienst
+   make verified-admission-policy
+   ```
+
 ## Benutzung
 
 ```sh
 make verified-approve  # Freigabe: signierter Tag des Authorizers auf den aktuellen Commit
 make verified-build    # Clone, Build, Push in die Registry
-make verified-deploy   # Deployment neu starten
+make verified-deploy   # Image über den Digest ausrollen (Standard: demo-app:latest, sonst DIGEST=...)
 make verified-provenance  # Herkunftsnachweis des letzten Builds anzeigen
 make verified-verify      # Herkunftsnachweis und Stückliste von demo-app:latest prüfen (AN4, AN5)
 ```
@@ -135,3 +148,6 @@ Gebaut wird nur ein Stand, für den ein vom Authorizer signierter Tag existiert.
 | `Verify/verify-provenance.sh` | Vorläufiger Verifier (AN4, AN5): prüft Herkunftsnachweis, Stückliste, Lockfile und Meldeliste. Aufruf über `make verified-verify`. |
 | `Build/tasks/sbom.yaml`, `Build/pipeline-sbom-patch.yaml` | Stückliste (AN5): Syft erzeugt sie nach dem Build, cosign legt sie neben das Image, ihr Digest steht im Herkunftsnachweis. |
 | `Trust/malicious_packages`, `Verify/malicious-*.jq` | Meldeliste (AN5b): Stand und Digest des Index im Trusted Key Store, Index und Abgleich mit jq. |
+| `Admission/` | Zulassungskontrolle (AN6, AN7): Kyverno in fester Version und Richtlinie `verified-images` (Digest, Herkunftsnachweis, Build-Definition, Aufruf des Prüfdienstes). |
+| `Verifier/` | Prüfdienst (AN7): prüft Freigabe, Stückliste, Lockfile und Meldeliste für Kyverno. |
+| `Deploy/` | Deploy über den Digest (AN6): Deploy-Auftrag und Deployment nennen das Image über seinen Digest. |

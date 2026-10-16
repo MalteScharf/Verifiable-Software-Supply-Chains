@@ -6,7 +6,8 @@ AUTHORIZER_KEY   := $(HOME)/.ssh/authorizer_signing.pub
 
 # Trusted Key Store: eine ConfigMap im Namespace trust, gelesen von diesen Prüfern
 TRUST_FILES   := allowed_signers_producer allowed_signers_authorizer build_platform.pub build_definition malicious_packages
-TRUST_READERS := system:serviceaccount:gitea:default system:serviceaccount:default:default
+TRUST_READERS := system:serviceaccount:gitea:default system:serviceaccount:default:default \
+                 system:serviceaccount:verifier:pruefdienst system:serviceaccount:kyverno:kyverno-admission-controller
 
 ##@ Verifizierbare Lieferkette: Vertrauen und Freigabe
 .PHONY: verified-check-trust verified-approve

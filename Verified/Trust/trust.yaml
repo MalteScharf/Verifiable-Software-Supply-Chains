@@ -29,6 +29,9 @@ subjects:
 - kind: ServiceAccount    # Tekton-Pipelines (Prüfung im Build)
   name: default
   namespace: default
+- kind: ServiceAccount    # Prüfdienst der Zulassungskontrolle (AN7)
+  name: pruefdienst
+  namespace: verifier
 roleRef:
   kind: Role
   name: trust-reader
