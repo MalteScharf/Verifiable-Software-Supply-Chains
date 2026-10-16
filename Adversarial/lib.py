@@ -36,6 +36,13 @@ class CommandError(RuntimeError):
         super().__init__(f"`{' '.join(cmd)}` exit {returncode}: {msg}")
 
 
+def remote_reason(exc: "CommandError") -> str:
+    """Begründung des VCS bei einem abgelehnten Push (Zeilen mit "remote:")."""
+    lines = [l.split("remote:", 1)[1].strip() for l in (exc.stderr or "").splitlines()
+             if l.startswith("remote:") and l.split("remote:", 1)[1].strip()]
+    return "; ".join(lines[:2]) or str(exc)
+
+
 class AttackBlocked(Exception):
     """Die Lieferkette hat die Angriffsaktion verhindert.
 
@@ -79,7 +86,9 @@ VARIANTS = {
         "container_port": 3000,
         "probe_port": 18081,
         "distribute_run": "Verified/Distribute/runs/run-gitea.yaml",
-        "deploy_run": "Conventional/Deploy/runs/run.yaml",
+        # Deploy über den Digest (AN6): der Digest stammt aus dem Distribute-Lauf
+        "deploy_run": "Verified/Deploy/runs/run-deploy.yaml",
+        "image_repo": "registry.registry.svc.cluster.local:5000/demo-app",
     },
 }
 
@@ -179,6 +188,7 @@ class AttackTest:
         self.detail = ""          # Ergebnis-/Statusmeldung für den Report
         self.repo: Path | None = None
         self._tmpdirs: list[str] = []
+        self._image = ""          # gebautes Image mit Digest (verifizierbare Kette)
 
     # ---- Lebenszyklus (Unterklasse implementiert) ------------------------- #
     def attack(self) -> None:
@@ -234,7 +244,7 @@ class AttackTest:
         try:
             self.git("push", "origin", f"HEAD:{branch}")
         except CommandError as exc:
-            raise AttackBlocked(f"Push abgelehnt: {exc}") from exc
+            raise AttackBlocked(f"Push abgelehnt: {remote_reason(exc)}") from exc
 
     def head_sha(self) -> str:
         return self.git("rev-parse", "HEAD").stdout.strip()
@@ -257,6 +267,9 @@ class AttackTest:
         manifest = (self.repo_root / run_file).read_text()
         if "__REVISION__" in manifest:
             manifest = manifest.replace("__REVISION__", self.remote_sha())
+        # Deploy-Auftrag der verifizierbaren Kette (AN6): Image über den Digest
+        if "__IMAGE__" in manifest:
+            manifest = manifest.replace("__IMAGE__", self._image)
         name = run(
             kubectl(self.cfg, "create", "-f", "-", "-o", "jsonpath={.metadata.name}"),
             input=manifest,
@@ -291,11 +304,36 @@ class AttackTest:
                     raise AttackBlocked(f"{label}-Pipeline nicht erfolgreich ({name})")
                 print(f"    ! {label}-Pipeline nicht erfolgreich — Cleanup fährt fort")
                 return
-        run(
+            if label == "Distribute" and c.get("image_repo"):
+                self._image = f"{c['image_repo']}@{self._built_digest(name)}"
+                print(f"    -> gebautes Image {self._image.split('@')[1][:19]}")
+        rollout = run(
             kubectl(c, "rollout", "status", f"deployment/{c['deployment']}",
                     "-n", c["deploy_ns"], "--timeout=180s"),
             check=False,
         )
+        if rollout.returncode != 0:
+            reason = self._failed_create()
+            if fatal:
+                raise AttackBlocked(f"Rollout nicht abgeschlossen: {reason}")
+            print(f"    ! Rollout nicht abgeschlossen: {reason}")
+
+    def _built_digest(self, pipelinerun: str) -> str:
+        """Digest des Images aus dem Result IMAGE_DIGEST des Build-Tasks."""
+        return run(kubectl(
+            self.cfg, "get", "taskrun",
+            "-l", f"tekton.dev/pipelineRun={pipelinerun},tekton.dev/pipelineTask=build-and-push",
+            "-o", "jsonpath={.items[0].status.results[?(@.name=='IMAGE_DIGEST')].value}",
+        )).stdout.strip()
+
+    def _failed_create(self) -> str:
+        """Letzte Meldung zu nicht angelegten Pods (z. B. Ablehnung durch die Zulassungskontrolle)."""
+        out = run(kubectl(
+            self.cfg, "get", "events", "-n", self.cfg["deploy_ns"],
+            "--field-selector", "reason=FailedCreate", "--sort-by=.lastTimestamp",
+            "-o", "jsonpath={.items[-1:].message}",
+        ), check=False).stdout.strip()
+        return out[:300] or "keine Meldung"
 
     def run_chain(self) -> None:
         """Kette für den Angriff durchlaufen; blockt die Kette, -> AttackBlocked."""
