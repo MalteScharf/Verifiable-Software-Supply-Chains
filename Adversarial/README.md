@@ -13,9 +13,10 @@ gehärtet (später) `blocked`.
 
 ## Ausführen
 
-Voraussetzung: laufendes Baseline-Setup gemäß `Conventional/readme.md` (kind-Cluster,
-Tekton, Gitea + Registry deployt, Demo-App in Gitea gepusht, Pipelines/Tasks und
-`Conventional/Deploy/deploy.yaml` appliziert). Werkzeuge: `python3`, `git`, `kubectl`, `tkn`.
+Voraussetzung: laufendes Baseline- und gehärtetes Setup gemäß `Conventional/readme.md`
+und `Verified/README.md` (kind-Cluster, Tekton, Gitea + Registry deployt, Demo-App
+in Gitea gepusht, Pipelines/Tasks und Deployments appliziert). Werkzeuge:
+`python3`, `git`, `kubectl`, `tkn` und `docker` mit Buildx.
 
 ```sh
 python3 Adversarial/runner.py                    # alle Tests, beide Varianten
@@ -118,3 +119,10 @@ make verified-hook
   besitzt daher keinen Herkunftsnachweis. Prüfkriterium ist die Zulassung des
   Images, nicht sein Verhalten. Baseline: `vulnerable` (Image zugelassen),
   gehärtet: `blocked` (Zulassung durch Kyverno abgelehnt).
+
+- `codecov-tag-overwrite` — Codecov (2021), Ersetzen des Image-Inhalts beim Distributor
+  unter demselben Tag an VG5 (Distributor → Consumer), CAPEC-560 und CAPEC-439,
+  verletzte Annahme A5. Baut ein harmloses Image mit frischer Nonce und veröffentlicht
+  es über die Registry-API unter `demo-app:latest`. Die Deployment-Spec bleibt
+  unverändert. Baseline: `vulnerable` (Marker erreichbar), gehärtet: `blocked`
+  (Deployment lädt weiter den festgelegten Image-Digest).

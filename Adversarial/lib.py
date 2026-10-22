@@ -10,11 +10,15 @@ aufgerufen.
 from __future__ import annotations
 
 import contextlib
+import base64
+import hashlib
+import socket
 import shutil
 import subprocess
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Iterator
@@ -66,6 +70,10 @@ VARIANTS = {
         "branch": "main",
         "deploy_ns": "deploy",
         "deployment": "demo-app",
+        "registry_namespace": "registry",
+        "registry_service": "registry",
+        "registry_repo": "demo-app",
+        "registry_tag": "latest",
         "container_port": 3000,
         "probe_port": 18080,
         "distribute_run": "Conventional/Distribute/runs/run-gitea.yaml",
@@ -83,6 +91,10 @@ VARIANTS = {
         "branch": "main",
         "deploy_ns": "deploy",
         "deployment": "demo-app",
+        "registry_namespace": "registry",
+        "registry_service": "registry",
+        "registry_repo": "demo-app",
+        "registry_tag": "latest",
         "container_port": 3000,
         "probe_port": 18081,
         "distribute_run": "Verified/Distribute/runs/run-gitea.yaml",
@@ -145,6 +157,113 @@ def wait_http(url: str, timeout: int = 30, interval: float = 0.5) -> bool:
             last = exc
         time.sleep(interval)
     raise TimeoutError(f"{url} nicht bereit nach {timeout}s ({last})")
+
+
+class RegistryAPI:
+    """Kleiner HTTP-Client für die OCI-Registry-API v2."""
+
+    def __init__(self, base_url: str, cfg: dict):
+        self.base_url = base_url.rstrip("/")
+        self.cfg = cfg
+
+    def request(self, method: str, path: str, *, headers: dict | None = None,
+                body: bytes | None = None) -> tuple[int, dict[str, str], bytes]:
+        """Sendet eine Registry-Anfrage und liefert Status, Header und Inhalt."""
+        if path.startswith(("http://", "https://")):
+            url = path
+        else:
+            url = urllib.parse.urljoin(self.base_url + "/", path.lstrip("/"))
+        request_headers = dict(headers or {})
+        username = self.cfg.get("registry_username")
+        password = self.cfg.get("registry_password")
+        if username is not None and password is not None:
+            token = base64.b64encode(f"{username}:{password}".encode()).decode()
+            request_headers["Authorization"] = f"Basic {token}"
+        request = urllib.request.Request(
+            url, data=body, headers=request_headers, method=method
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                return response.status, dict(response.headers.items()), response.read()
+        except urllib.error.HTTPError as exc:
+            return exc.code, dict(exc.headers.items()), exc.read()
+
+    def upload_blob(self, repository: str, content: bytes) -> str:
+        """Lädt einen Blob hoch, sofern er noch nicht in der Registry liegt."""
+        digest = f"sha256:{hashlib.sha256(content).hexdigest()}"
+        prefix = f"/v2/{repository}/blobs"
+        status, _, _ = self.request("HEAD", f"{prefix}/{digest}")
+        if status == 200:
+            return digest
+        if status != 404:
+            raise RuntimeError(f"Blob-Prüfung für {digest} lieferte HTTP {status}")
+
+        status, headers, _ = self.request("POST", f"{prefix}/uploads/")
+        if status != 202:
+            raise RuntimeError(f"Registry-Uploadstart lieferte HTTP {status}")
+        location = headers.get("Location") or headers.get("location")
+        if not location:
+            raise RuntimeError("Registry-Uploadstart lieferte keinen Location-Header")
+        upload_url = urllib.parse.urljoin(self.base_url + "/", location)
+        parsed_upload = urllib.parse.urlsplit(upload_url)
+        parsed_base = urllib.parse.urlsplit(self.base_url)
+        query = urllib.parse.parse_qsl(parsed_upload.query, keep_blank_values=True)
+        query.append(("digest", digest))
+        upload_url = urllib.parse.urlunsplit((
+            parsed_base.scheme,
+            parsed_base.netloc,
+            parsed_upload.path,
+            urllib.parse.urlencode(query),
+            parsed_upload.fragment,
+        ))
+        status, _, _ = self.request(
+            "PUT", upload_url,
+            headers={"Content-Type": "application/octet-stream"},
+            body=content,
+        )
+        if status != 201:
+            raise RuntimeError(f"Blob-Upload für {digest} lieferte HTTP {status}")
+        return digest
+
+
+@contextlib.contextmanager
+def registry_api(cfg: dict) -> Iterator[RegistryAPI]:
+    """Stellt die Registry über einen lokalen kubectl-Port-Forward bereit."""
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        local_port = listener.getsockname()[1]
+    command = kubectl(
+        cfg, "port-forward", "--address", "127.0.0.1",
+        "-n", cfg.get("registry_namespace", "registry"),
+        f"svc/{cfg.get('registry_service', 'registry')}",
+        f"{local_port}:5000",
+    )
+    process = subprocess.Popen(
+        command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    client = RegistryAPI(f"http://127.0.0.1:{local_port}", cfg)
+    try:
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            if process.poll() is not None:
+                raise RuntimeError("kubectl-Port-Forward zur Registry wurde beendet")
+            try:
+                status, _, _ = client.request("GET", "/v2/")
+                if status == 200:
+                    break
+            except (OSError, urllib.error.URLError):
+                pass
+            time.sleep(0.2)
+        else:
+            raise TimeoutError("Registry über Port-Forward nicht erreichbar")
+        yield client
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
 
 
 def variant_reachable(cfg: dict) -> tuple[bool, str]:
@@ -253,6 +372,15 @@ class AttackTest:
         """Aktueller Commit des Varianten-Branches im VCS."""
         out = run(["git", "ls-remote", self.push_url(), f"refs/heads/{self.cfg['branch']}"]).stdout
         return out.split()[0] if out.strip() else ""
+    
+    def deployed_image(self) -> str:
+        """Liefert die Image-Referenz aus der aktuellen Deployment-Spec."""
+        return run(kubectl(
+            self.cfg, "get", "deployment", self.cfg["deployment"],
+            "-n", self.cfg["deploy_ns"],
+            "-o", "jsonpath={.spec.template.spec.containers[0].image}",
+        )).stdout.strip()
+
 
     def reset_remote(self, sha: str) -> None:
         """Setzt den Varianten-Branch im VCS per Force-Push auf sha zurück.
