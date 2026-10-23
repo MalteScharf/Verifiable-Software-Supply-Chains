@@ -3,4 +3,4 @@
 - {op: test, path: /spec/template/spec/containers/0/name, value: demo-app}
 - op: replace
   path: /spec/template/spec/containers/0/image
-  value: registry.registry.svc.cluster.local:5000/demo-app@sha256:338e1c02ea3e95d1c10d0b81f8cea74e3a6a54f9492966ad7c718a3902855024
+  value: registry.registry.svc.cluster.local:5000/demo-app@sha256:0b8a11a3cf0b0ff082e48a9e25e841b53e794d1fd3e9b39385bc393c2e87739c
