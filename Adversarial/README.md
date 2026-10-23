@@ -88,13 +88,13 @@ Runner auf.
   Paket an VG3 (externer Distributor -> Build-Plattform), CAPEC-538, verletzte
   Annahme A3. Veroeffentlicht mit einem eigenen Konto (F3, keine Kontouebernahme)
   eine hoehere Version der direkten Abhaengigkeit `express` im clusterinternen
-  npm-Index (`Conventional/Distribute/npm-index.yaml`). Die Baseline loest sie
+  npm-Index (`Adversarial/npm-index.yaml`). Die Baseline loest sie
   ueber den offenen Versionsbereich automatisch auf; die gehaertete Kette bleibt
   durch `npm ci` und das Lockfile bei der gepinnten Version (AN3). Prueft am
   deployten Pod den versteckten Pfad `/.triton`. Baseline: `vulnerable`,
   gehaertet: `blocked`.
 
-  Voraussetzung: Der npm-Index ist in beiden Clustern deployt und die Demo-App
+  Voraussetzung: Der npm-Index ist in beiden Clustern deployt (`make npm-index`) und die Demo-App
   wurde mit der Datei `.npmrc` neu gebaut und (gehaertet) freigegeben.
 
 ## Gehärtete Variante

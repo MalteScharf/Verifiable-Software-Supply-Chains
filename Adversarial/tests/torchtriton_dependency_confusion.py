@@ -7,7 +7,7 @@ CAPEC-538). Der Angreifer uebernimmt dabei kein Konto, sondern veroeffentlicht
 nur ein eigenes Paket unter einem Namen, der auch andernorts existiert.
 
 Im Prototyp tritt an die Stelle der zusammengefuehrten Quellen der
-clusterinterne npm-Index (Conventional/Distribute/npm-index.yaml). Er liefert
+clusterinterne npm-Index (Adversarial/npm-index.yaml, Testaufbau). Er liefert
 lokal abgelegte Pakete aus und leitet sonst an npmjs weiter. Der Angreifer legt
 dort eine hoehere Version der direkten Abhaengigkeit express ab. Die Auswahl der
 bösartigen Version trifft nicht der Producer, sondern erst die Aufloesung auf der

@@ -39,6 +39,8 @@ verified-base:        ## Tekton, Gitea, Registry, Tasks, Pipelines, Deploy sowie
 		*) echo "  Fehler: HTTP $$CODE"; exit 1;; \
 	esac
 	@$(MAKE) --no-print-directory verified-hook
+	@# Testaufbau T3: Die .npmrc der Demo-App zeigt auf den npm-Index, ohne ihn scheitert der Build
+	@$(MAKE) --no-print-directory npm-index-verified
 
 verified-hook:        ## Pre-receive-Hook (AN1) im Repository demo-app aktivieren
 	kubectl --context $(VER_CTX) exec -n gitea deploy/gitea -- su git -c \

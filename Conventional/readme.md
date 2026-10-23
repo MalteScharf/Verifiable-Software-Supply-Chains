@@ -39,7 +39,15 @@ Alle Befehle werden im Hauptordner des Repos ausgeführt.
    ```sh
    kubectl apply -f Conventional/Build/VCS/vcs.yaml
    kubectl apply -f Conventional/Distribute/registry.yaml
-   kubectl apply -f Conventional/Distribute/npm-index.yaml
+   ```
+
+   Zusätzlich den npm-Index anlegen. Er ist ein Testaufbau für den adversarialen
+   Test zu T3 und gehört nicht zur Lieferkette. Da die `.npmrc` der Demo-App auf
+   ihn zeigt, wird er trotzdem für jeden Build gebraucht. Im Normalzustand leitet
+   er alle Anfragen an npmjs weiter.
+
+   ```sh
+   make npm-index-conventional
    ```
 
 4. **Demo-App nach Gitea pushen**

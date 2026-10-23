@@ -1,4 +1,10 @@
-# Zusaetzlicher npm-Paketindex (Distribute-Phase, externer Distributor).
+# npm-Paketindex als Testaufbau fuer T3 (torchtriton, VG3).
+#
+# Der Index gehoert nicht zur Lieferkette, sondern zur Testumgebung. Er wird
+# nur fuer den Test tests/torchtriton_dependency_confusion.py gebraucht. Da die
+# .npmrc beider Demo-Apps auf ihn zeigt, muss er in beiden Clustern dauerhaft
+# laufen (make npm-index). Im Normalzustand leitet er jede Anfrage an npmjs
+# weiter und veraendert den Build nicht.
 #
 # Modelliert die Situation des torchtriton-Vorfalls: Die Build-Plattform bezieht
 # Pakete nicht direkt von npmjs, sondern ueber einen vorgelagerten Index, wie er

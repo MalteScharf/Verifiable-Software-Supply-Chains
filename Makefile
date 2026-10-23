@@ -16,6 +16,7 @@ include make/verified-build.mk
 include make/verified-chains.mk
 include make/verified-sbom.mk
 include make/verified-admission.mk
+include make/adversarial.mk
 
 ##@ Allgemein
 .PHONY: help
