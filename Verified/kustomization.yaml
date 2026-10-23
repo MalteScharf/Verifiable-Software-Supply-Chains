@@ -19,6 +19,7 @@ resources:
 - ../Conventional/Build/pipeline.yaml
 # Distribute
 - ../Conventional/Distribute/registry.yaml
+- ../Conventional/Distribute/npm-index.yaml
 - ../Conventional/Distribute/pipeline.yaml
 # Deploy
 - ../Conventional/Deploy/tasks/run-deploy.yaml

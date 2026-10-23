@@ -11,7 +11,7 @@
 #   den Prüfdienst im Namespace verifier auf (Verified/Verifier).
 # Gilt in allen Namespaces außer denen der Plattform selbst (AN7). Diese führen
 # Werkzeuge aus, die nicht aus der Lieferkette stammen (Tekton, Gitea, Registry,
-# Kyverno, Prüfdienst). kube-system und kyverno nimmt Kyverno ohnehin aus.
+# Kyverno, Prüfdienst, npm-Index). kube-system und kyverno nimmt Kyverno ohnehin aus.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -32,7 +32,7 @@ spec:
       - resources:
           namespaces: &plattform [kube-system, kube-public, kube-node-lease, local-path-storage,
                        kyverno, tekton-pipelines, tekton-pipelines-resolvers, tekton-chains,
-                       default, gitea, registry, verifier]
+                       default, gitea, registry, verifier, npm]
     context:
     - name: tks
       configMap:

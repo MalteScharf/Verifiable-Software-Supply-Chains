@@ -1,0 +1,117 @@
+# Zusaetzlicher npm-Paketindex (Distribute-Phase, externer Distributor).
+#
+# Modelliert die Situation des torchtriton-Vorfalls: Die Build-Plattform bezieht
+# Pakete nicht direkt von npmjs, sondern ueber einen vorgelagerten Index, wie er
+# in Unternehmen ueblich ist (Artifactory, Nexus). Der Index fuehrt zwei Quellen
+# zusammen: lokal abgelegte Pakete und das oeffentliche npmjs.
+#
+# Umsetzung mit dem Webserver nginx (quelloffen, Standard-Image, G1/G2):
+#   - Liegt eine Datei lokal vor, wird sie ausgeliefert.
+#   - Andernfalls leitet der Index per 302 an registry.npmjs.org weiter.
+# Im Normalzustand ist der lokale Speicher leer, jede Anfrage geht also an npmjs
+# und der Build verhaelt sich wie zuvor. Erst wenn ein Angreifer ein Paket
+# ablegt, hat der lokale Index Vorrang. Das ist der Mechanismus des Vorfalls:
+# zwei Quellen, und die vom Angreifer kontrollierte gewinnt.
+#
+# Schreibzugriff (Veroeffentlichen durch den Angreifer, CAPEC-538) erfolgt ueber
+# die WebDAV-Methoden PUT und DELETE des nginx. Metadaten und Tarball liegen auf
+# getrennten Pfaden (/<paket> bzw. /_t/...), damit ein Paketname nie zugleich
+# Datei und Verzeichnis sein muss.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: npm
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: npm-index-config
+  namespace: npm
+data:
+  nginx.conf: |
+    worker_processes 1;
+    events { worker_connections 256; }
+    http {
+      server {
+        listen 4873;
+        root   /data;
+        client_max_body_size 64m;
+        location / {
+          # Fehlt eine Datei beim Lesen, an npmjs weiterleiten.
+          error_page 404 = @npmjs;
+        }
+        location @npmjs {
+          return 302 https://registry.npmjs.org$request_uri;
+        }
+      }
+      # Schreibzugriff ist getrennt vom Lese-Proxy. Andernfalls faengt die
+      # 404-Weiterleitung auch ein PUT auf eine neue Datei ab und leitet es
+      # faelschlich zu npmjs weiter.
+      server {
+        listen 4874;
+        root /data;
+        client_max_body_size 64m;
+        location / {
+          dav_methods PUT DELETE;
+          create_full_put_path on;
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: npm-index
+  namespace: npm
+  labels:
+    app: npm-index
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: npm-index
+  template:
+    metadata:
+      labels:
+        app: npm-index
+    spec:
+      containers:
+      - name: nginx
+        # Feste Version fuer Reproduzierbarkeit (K1). Das offizielle nginx-Image
+        # enthaelt das WebDAV-Modul.
+        image: nginx:1.29.2
+        ports:
+        - containerPort: 4873
+        - containerPort: 4874
+        volumeMounts:
+        - name: config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+          readOnly: true
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: config
+        configMap:
+          name: npm-index-config
+      # Lokaler Speicher des Index. Fluechtig: bei jedem Neustart leer, sodass
+      # der saubere Ausgangszustand (nur Weiterleitung an npmjs) wiederkehrt.
+      - name: data
+        emptyDir: {}
+---
+# Clusterinterner Service: npm-index.npm.svc.cluster.local:4873
+apiVersion: v1
+kind: Service
+metadata:
+  name: npm-index
+  namespace: npm
+spec:
+  selector:
+    app: npm-index
+  ports:
+  - name: read
+    port: 4873
+    targetPort: 4873
+  - name: write
+    port: 4874
+    targetPort: 4874

@@ -39,6 +39,7 @@ Alle Befehle werden im Hauptordner des Repos ausgeführt.
    ```sh
    kubectl apply -f Conventional/Build/VCS/vcs.yaml
    kubectl apply -f Conventional/Distribute/registry.yaml
+   kubectl apply -f Conventional/Distribute/npm-index.yaml
    ```
 
 4. **Demo-App nach Gitea pushen**

@@ -10,3 +10,5 @@
 | php-account-takeover | hardened | blocked | Push abgelehnt: Abgelehnt: Commit 4c61cd6643de7b9a5aeda85cd419f14e9bcedc4c nicht gültig signiert |
 | tjactions-ref-redirect | hardened | blocked | Umlenkung von main abgelehnt: Abgelehnt: Commit a33fdb05dc5a678697cad609672034517bc381ee nicht gültig signiert |
 | uaparser-image-bypass | hardened | blocked | Zulassung abgelehnt: admission webhook "mutate.kyverno.svc-fail" denied the request: resource Pod/deploy/t4-uaparser was blocked due to the following policies verified-images: herkunftsnachweis: 'image attestations verification failed, verifiedCount: 0, requiredCount: 1, error: no matching attestations: ' |
+| torchtriton-dependency-confusion | baseline | vulnerable | bösartiges express@4.22.4 aufgelöst und erreichbar (/.triton), Marker bestätigt; Tarnung intakt; im Pod: express@4.22.4 |
+| torchtriton-dependency-confusion | hardened | blocked | Marker nicht erreichbar; im Pod: express@4.22.3, Angreifer-Version war 4.22.4 |

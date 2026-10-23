@@ -74,6 +74,10 @@ VARIANTS = {
         "registry_service": "registry",
         "registry_repo": "demo-app",
         "registry_tag": "latest",
+        "npm_namespace": "npm",
+        "npm_service": "npm-index",
+        "npm_read_port": 4873,
+        "npm_write_port": 4874,
         "container_port": 3000,
         "probe_port": 18080,
         "distribute_run": "Conventional/Distribute/runs/run-gitea.yaml",
@@ -95,6 +99,10 @@ VARIANTS = {
         "registry_service": "registry",
         "registry_repo": "demo-app",
         "registry_tag": "latest",
+        "npm_namespace": "npm",
+        "npm_service": "npm-index",
+        "npm_read_port": 4873,
+        "npm_write_port": 4874,
         "container_port": 3000,
         "probe_port": 18081,
         "distribute_run": "Verified/Distribute/runs/run-gitea.yaml",
@@ -256,6 +264,95 @@ def registry_api(cfg: dict) -> Iterator[RegistryAPI]:
             time.sleep(0.2)
         else:
             raise TimeoutError("Registry über Port-Forward nicht erreichbar")
+        yield client
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+
+
+class NpmIndex:
+    """Kleiner HTTP-Client fuer den npm-Paketindex (nginx mit WebDAV).
+
+    Der Angreifer veroeffentlicht ueber PUT und raeumt ueber DELETE auf. Es wird
+    nur die Python-Standardbibliothek verwendet.
+    """
+
+    def __init__(self, base_url: str):
+        self.base_url = base_url.rstrip("/")
+        class _NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                return None
+
+        self.opener = urllib.request.build_opener(_NoRedirect)
+
+    def _req(self, method: str, path: str, body: bytes | None = None) -> int:
+        url = urllib.parse.urljoin(self.base_url + "/", path.lstrip("/"))
+        req = urllib.request.Request(url, data=body, method=method)
+        # Eine 302-Antwort ist beim fehlenden Paket erwartbar. urllib folgt ihr
+        # standardmäßig, was den Status verdeckt und den Aufruf aufhängen kann.
+        try:
+            with self.opener.open(req, timeout=30) as resp:
+                return resp.status
+        except urllib.error.HTTPError as exc:
+            return exc.code
+
+    def put(self, path: str, body: bytes) -> None:
+        status = self._req("PUT", path, body)
+        if status not in (200, 201, 204):
+            raise RuntimeError(f"PUT {path} lieferte HTTP {status}")
+
+    def delete(self, path: str) -> None:
+        status = self._req("DELETE", path)
+        if status not in (200, 202, 204, 404):
+            raise RuntimeError(f"DELETE {path} lieferte HTTP {status}")
+
+
+@contextlib.contextmanager
+def npm_index(cfg: dict) -> Iterator[NpmIndex]:
+    """Stellt den npm-Paketindex ueber einen lokalen kubectl-Port-Forward bereit."""
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        local_port = listener.getsockname()[1]
+    port = cfg.get("npm_write_port", 4874)
+    command = kubectl(
+        cfg, "port-forward", "--address", "127.0.0.1",
+        "-n", cfg.get("npm_namespace", "npm"),
+        f"svc/{cfg.get('npm_service', 'npm-index')}",
+        f"{local_port}:{port}",
+    )
+    process = subprocess.Popen(
+        command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
+    )
+
+    def _why() -> str:
+        # kubectl schreibt die Ursache (fehlender Service, keine Endpoints) nach stderr
+        # Nur nach Prozessende lesen; .read() auf einem laufenden kubectl blockiert.
+        err = ((process.stderr.read() or "").strip()
+               if process.stderr and process.poll() is not None else "")
+        ns = cfg.get("npm_namespace", "npm")
+        svc = cfg.get("npm_service", "npm-index")
+        hint = (f"npm-Index nicht erreichbar (Kontext {cfg.get('kube_context')}, "
+                f"Service {svc} im Namespace {ns}). "
+                f"Ist npm-index.yaml in diesem Cluster deployt?")
+        return f"{hint} kubectl: {err}" if err else hint
+
+    client = NpmIndex(f"http://127.0.0.1:{local_port}")
+    try:
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            if process.poll() is not None:
+                raise RuntimeError(_why())
+            try:
+                client._req("GET", "/_t/")  # 302 is fine: it proves the index responds
+                break
+            except (OSError, urllib.error.URLError):
+                time.sleep(0.2)
+        else:
+            raise TimeoutError(_why())
         yield client
     finally:
         process.terminate()
