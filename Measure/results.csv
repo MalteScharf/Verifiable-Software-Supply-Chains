@@ -1,0 +1,3 @@
+zeitpunkt,variante,build,nachweis,deploy,zulassung,gesamt
+2026-10-23T11:11:48,baseline,34.4,,7.5,0.04,41.9
+2026-10-23T11:13:17,hardened,82.1,0.6,6.0,0.18,88.7
