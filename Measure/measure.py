@@ -16,14 +16,14 @@ Messgrößen (in Sekunden):
              verifizierbaren Kette mit Kyverno und Prüfdienst.
   gesamt     build + nachweis + deploy
 
-Zusätzlich wird die Dateigröße der Artefakte in Bytes gemessen. Die Werte
-stammen aus den Manifesten in der Registry. Dort ist für jede Datei (Blob)
-ihre exakte Größe angegeben.
-  groesse_image        komprimierte Layer und Konfiguration des Images,
-                       also die Dateien, die beim Pull übertragen werden
-  groesse_stueckliste  die Datei sbom.cdx.json, Tag sha256-<digest>.sbom (AN5)
-  groesse_nachweis     der signierte Herkunftsnachweis (DSSE-Umschlag als
-                       JSON-Datei), Tag sha256-<digest>.att (AN4)
+Zusätzlich wird gemessen, wie viel Speicher die Artefakte in der Registry
+belegen (in Bytes). Die Werte stammen aus den Manifesten der Registry. Dort
+ist für jede abgelegte Datei (Blob) ihre exakte Größe angegeben.
+  groesse_image        Layer und Konfiguration des Images. Die Layer liegen
+                       in der Registry komprimiert vor.
+  groesse_stueckliste  die Stückliste als JSON-Datei, Tag sha256-<digest>.sbom (AN5)
+  groesse_nachweis     der signierte Herkunftsnachweis als JSON-Datei,
+                       Tag sha256-<digest>.att (AN4)
 Stückliste und Nachweis gibt es nur in der verifizierbaren Kette.
 
 Genauigkeit: Der Abschluss eines PipelineRuns wird alle POLL Sekunden über
@@ -162,13 +162,13 @@ def manifest(api, repo: str, ref: str) -> dict | None:
 
 
 def image_size(api, repo: str, digest: str) -> int | str:
-    """Dateigröße des Images: Konfiguration plus alle komprimierten Layer."""
+    """Speicher des Images in der Registry: Konfiguration plus alle Layer."""
     m = manifest(api, repo, digest)
     return m["config"]["size"] + sum(layer["size"] for layer in m["layers"]) if m else ""
 
 
 def file_size(api, repo: str, tag: str) -> int | str:
-    """Dateigröße eines angehängten Artefakts (Stückliste oder Nachweis).
+    """Speicher eines angehängten Artefakts (Stückliste oder Nachweis) in der Registry.
     Die Datei liegt als Layer unter dem Tag. Fehlt der Tag, bleibt das Feld leer."""
     m = manifest(api, repo, tag)
     if not m:
@@ -179,7 +179,7 @@ def file_size(api, repo: str, tag: str) -> int | str:
 
 
 def sizes(cfg: dict, digest: str) -> dict:
-    """Dateigrößen von Image, Stückliste und Herkunftsnachweis."""
+    """Speicherbedarf von Image, Stückliste und Herkunftsnachweis in der Registry."""
     repo, tag = cfg["registry_repo"], digest.replace(":", "-")
     with lib.registry_api(cfg) as api:
         return {

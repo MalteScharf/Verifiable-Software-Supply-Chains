@@ -113,6 +113,13 @@ VARIANTS = {
 }
 
 
+# Identität und Signaturschlüssel des Producers (Verified/readme.md). Nur Tests
+# mit stärkerem Angreifer verwenden ihn, der einen Producer samt Schlüssel
+# kontrolliert (z. B. tjactions_signed_redirect.py).
+PRODUCER = ("Malte Scharf", "malte.scharf@studium.fernuni-hagen.de")
+PRODUCER_SIGNING_KEY = "~/.ssh/producer_signing.pub"
+
+
 def kubectl(cfg: dict, *args: str) -> list[str]:
     """kubectl-Aufruf mit dem festen Kontext der Variante."""
     return ["kubectl", "--context", cfg["kube_context"], *args]
@@ -462,6 +469,17 @@ class AttackTest:
         except CommandError as exc:
             raise AttackBlocked(f"Push abgelehnt: {remote_reason(exc)}") from exc
 
+    def commit_signed(self, msg: str) -> None:
+        """Commit als Producer, signiert mit dessen Schlüssel. Bildet einen
+        Angreifer ab, der einen Producer samt Signaturschlüssel kontrolliert."""
+        key = str(Path(PRODUCER_SIGNING_KEY).expanduser())
+        self.git("-c", "gpg.format=ssh", "-c", f"user.signingkey={key}",
+                 "-c", "commit.gpgsign=true", "commit", "-am", msg, author=PRODUCER)
+
+    def delete_remote_branch(self, branch: str) -> None:
+        """Entfernt einen Branch im VCS; ein fehlender Branch ist kein Fehler."""
+        run(["git", "push", self.push_url(), "--delete", branch], check=False)
+
     def head_sha(self) -> str:
         return self.git("rev-parse", "HEAD").stdout.strip()
 
@@ -526,7 +544,9 @@ class AttackTest:
             print(f"    -> {label}-PipelineRun {name} ({'ok' if ok else 'FEHLER'})")
             if not ok:
                 if fatal:
-                    raise AttackBlocked(f"{label}-Pipeline nicht erfolgreich ({name})")
+                    failed = self._failed_tasks(name)
+                    where = f", abgebrochen in {failed}" if failed else ""
+                    raise AttackBlocked(f"{label}-Pipeline nicht erfolgreich ({name}{where})")
                 print(f"    ! {label}-Pipeline nicht erfolgreich — Cleanup fährt fort")
                 return
             if label == "Distribute" and c.get("image_repo"):
@@ -542,6 +562,26 @@ class AttackTest:
             if fatal:
                 raise AttackBlocked(f"Rollout nicht abgeschlossen: {reason}")
             print(f"    ! Rollout nicht abgeschlossen: {reason}")
+
+    def _failed_tasks(self, pipelinerun: str) -> str:
+        """Namen der fehlgeschlagenen Tasks eines PipelineRuns
+        (z. B. "verify-authorization"). Belegt den Ort der Abwehr."""
+        import json
+        out = run(kubectl(
+            self.cfg, "get", "taskrun", "-l", f"tekton.dev/pipelineRun={pipelinerun}",
+            "-o", "json",
+        ), check=False).stdout
+        try:
+            items = json.loads(out).get("items", [])
+        except ValueError:
+            return ""
+        failed = []
+        for tr in items:
+            cond = (tr.get("status", {}).get("conditions") or [{}])[0]
+            if cond.get("status") == "False":
+                task = tr["metadata"].get("labels", {}).get("tekton.dev/pipelineTask", "?")
+                failed.append(task)
+        return ", ".join(failed)
 
     def _built_digest(self, pipelinerun: str) -> str:
         """Digest des Images aus dem Result IMAGE_DIGEST des Build-Tasks."""
